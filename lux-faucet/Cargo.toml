@@ -1,0 +1,56 @@
+[package]
+name = "lux-faucet"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Lux Network devnet faucet"
+
+[[bin]]
+name = "lux-faucet"
+path = "src/main.rs"
+
+[dependencies]
+lux-core = { path = "../lux-core" }
+
+# Async runtime
+tokio = { workspace = true }
+futures = { workspace = true }
+
+# Serialization
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+# CLI
+clap = { workspace = true }
+
+# Logging
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+
+# HTTP server
+axum = { workspace = true }
+tower = { workspace = true }
+tower-http = { workspace = true }
+
+# Rate limiting
+governor = "0.6"
+
+# EVM
+alloy-primitives = { workspace = true }
+alloy-signer = { workspace = true }
+alloy-signer-local = { workspace = true }
+alloy-consensus = { workspace = true }
+alloy-network = { workspace = true }
+alloy-rpc-types = { workspace = true }
+alloy-provider = { workspace = true }
+alloy-transport-http = { workspace = true }
+primitive-types = { workspace = true }
+
+# Utils
+anyhow = { workspace = true }
+hex = { workspace = true }
+reqwest = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }

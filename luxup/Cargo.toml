@@ -1,0 +1,52 @@
+[package]
+name = "luxup"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Lux Network deployment control plane"
+
+[[bin]]
+name = "luxup"
+path = "src/main.rs"
+
+[dependencies]
+lux-core = { path = "../lux-core" }
+
+# Async runtime
+tokio = { workspace = true }
+
+# Serialization
+serde = { workspace = true }
+serde_json = { workspace = true }
+serde_yaml = { workspace = true }
+
+# CLI
+clap = { workspace = true }
+
+# Logging
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+
+# AWS SDK
+aws-config = { workspace = true }
+aws-sdk-ec2 = { workspace = true }
+aws-sdk-s3 = { workspace = true }
+aws-sdk-cloudformation = { workspace = true }
+aws-sdk-ssm = { workspace = true }
+aws-sdk-sts = { workspace = true }
+
+# K8s (for K8s deployments)
+kube = { workspace = true }
+k8s-openapi = { workspace = true }
+
+# Utils
+thiserror = { workspace = true }
+anyhow = { workspace = true }
+chrono = { workspace = true }
+uuid = { workspace = true }
+tempfile = { workspace = true }
+rand = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }

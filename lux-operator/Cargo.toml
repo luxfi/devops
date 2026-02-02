@@ -1,0 +1,45 @@
+[package]
+name = "lux-operator"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Kubernetes operator for Lux Network"
+readme = "README.md"
+
+[[bin]]
+name = "lux-operator"
+path = "src/main.rs"
+
+[dependencies]
+lux-core = { path = "../lux-core" }
+
+# Async runtime
+tokio = { workspace = true }
+async-trait = { workspace = true }
+futures = { workspace = true }
+
+# Kubernetes
+kube = { workspace = true }
+k8s-openapi = { workspace = true }
+
+# Serialization
+serde = { workspace = true }
+serde_json = { workspace = true }
+serde_yaml = { workspace = true }
+
+# CLI
+clap = { workspace = true }
+
+# Logging
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+
+# HTTP client
+reqwest = { version = "0.11", features = ["json"] }
+
+# Utils
+thiserror = { workspace = true }
+anyhow = { workspace = true }
+chrono = { workspace = true }
+schemars = "0.8"

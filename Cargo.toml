@@ -1,12 +1,85 @@
 [workspace]
+resolver = "2"
+
 members = [
-    "avalanche-kms",
-    "avalanche-ops",
-    "avalanched-aws",
-    "avalancheup-aws",
-    "blizzard-aws",
-    "blizzardup-aws",
-    "devnet-faucet",
-    "staking-key-cert-s3-downloader",
-    "staking-signer-key-s3-downloader",
+    "lux-core",
+    "lux-operator",
+    "luxd",
+    "luxup",
+    "blizzard",
+    "blizzardup",
+    "lux-faucet",
+    "staking-key-downloader",
+    "staking-signer-downloader",
 ]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "BSD-3-Clause"
+repository = "https://github.com/luxfi/lux-ops"
+
+[workspace.dependencies]
+# Async runtime
+tokio = { version = "1.35", features = ["full"] }
+async-trait = "0.1"
+futures = "0.3"
+
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+serde_yaml = "0.9"
+
+# CLI
+clap = { version = "4.4", features = ["derive", "env"] }
+
+# Logging
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# AWS SDK
+aws-config = "1.1"
+aws-sdk-ec2 = "1.9"
+aws-sdk-s3 = "1.9"
+aws-sdk-cloudformation = "1.9"
+aws-sdk-cloudwatch = "1.9"
+aws-sdk-ssm = "1.9"
+aws-sdk-sts = "1.9"
+aws-sdk-kms = "1.9"
+
+# K8s
+kube = { version = "0.87", features = ["runtime", "derive"] }
+k8s-openapi = { version = "0.20", features = ["v1_28"] }
+
+# Crypto
+ring = "0.17"
+rustls = "0.21"
+rcgen = "0.12"
+
+# HTTP
+reqwest = { version = "0.11", features = ["json", "rustls-tls"] }
+axum = "0.7"
+tower = "0.4"
+tower-http = { version = "0.5", features = ["cors", "trace"] }
+
+# Utils
+thiserror = "1.0"
+anyhow = "1.0"
+chrono = { version = "0.4", features = ["serde"] }
+uuid = { version = "1.6", features = ["v4", "serde"] }
+tempfile = "3.9"
+base64 = "0.21"
+hex = "0.4"
+rand = "0.8"
+primitive-types = { version = "0.12", features = ["impl-serde"] }
+flate2 = "1.0"
+
+# EVM
+alloy-primitives = "0.8"
+alloy-signer = "0.6"
+alloy-signer-local = "0.6"
+alloy-consensus = "0.6"
+alloy-network = "0.6"
+alloy-rpc-types = "0.6"
+alloy-provider = { version = "0.6", features = ["reqwest"] }
+alloy-transport-http = "0.6"

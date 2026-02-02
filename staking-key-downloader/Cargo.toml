@@ -1,0 +1,35 @@
+[package]
+name = "staking-key-downloader"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Download staking TLS key/cert from S3"
+
+[[bin]]
+name = "staking-key-downloader"
+path = "src/main.rs"
+
+[dependencies]
+lux-core = { path = "../lux-core" }
+
+# Async runtime
+tokio = { workspace = true }
+
+# CLI
+clap = { workspace = true }
+
+# Logging
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+
+# AWS
+aws-config = { workspace = true }
+aws-sdk-s3 = { workspace = true }
+aws-sdk-kms = { workspace = true }
+
+# Compression
+flate2 = { workspace = true }
+
+# Utils
+anyhow = { workspace = true }

@@ -1,0 +1,26 @@
+//! Error types for the operator
+
+use thiserror::Error;
+
+#[derive(Error, Debug)]
+pub enum OperatorError {
+    #[error("Kubernetes API error: {0}")]
+    KubeApi(#[from] kube::Error),
+
+    #[error("Serialization error: {0}")]
+    Serialization(#[from] serde_json::Error),
+
+    #[error("Configuration error: {0}")]
+    Config(String),
+
+    #[error("Resource not found: {0}")]
+    NotFound(String),
+
+    #[error("Reconciliation error: {0}")]
+    Reconcile(String),
+
+    #[error("MPC error: {0}")]
+    Mpc(String),
+}
+
+pub type Result<T> = std::result::Result<T, OperatorError>;
