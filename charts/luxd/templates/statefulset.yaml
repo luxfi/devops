@@ -1,0 +1,97 @@
+{{- $network := .Values.networks[.Values.network] }}
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: luxd
+  namespace: {{ $network.namespace }}
+spec:
+  serviceName: luxd-headless
+  replicas: {{ .Values.replicas }}
+  selector:
+    matchLabels:
+      app: luxd
+  template:
+    metadata:
+      labels:
+        app: luxd
+        network: {{ .Values.network }}
+    spec:
+      securityContext:
+        fsGroup: 1000
+        runAsUser: 1000
+        runAsGroup: 1000
+      initContainers:
+      {{- if .Values.evmPlugin.enabled }}
+      - name: init-plugins
+        image: curlimages/curl:latest
+        securityContext:
+          runAsUser: 0
+          runAsGroup: 0
+        command: ["/bin/sh", "-c"]
+        args:
+        - |
+          mkdir -p /data/plugins /data/staking
+          curl -sL {{ .Values.evmPlugin.url }} -o /data/plugins/{{ .Values.evmPlugin.vmID }}
+          chmod +x /data/plugins/*
+          chown -R 1000:1000 /data
+          echo "Plugins installed successfully"
+        volumeMounts:
+        - name: data
+          mountPath: /data
+      {{- end }}
+      containers:
+      - name: luxd
+        image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        ports:
+        - name: http
+          containerPort: {{ $network.httpPort }}
+        - name: staking
+          containerPort: {{ $network.stakingPort }}
+        command: ["/bin/sh", "-c"]
+        args:
+        - |
+          mkdir -p /data/plugins && exec /luxd/build/luxd \
+            --network-id={{ $network.networkID }} \
+            --http-host=0.0.0.0 \
+            --http-port={{ $network.httpPort }} \
+            --http-allowed-hosts={{ .Values.api.httpAllowedHosts }} \
+            --staking-port={{ $network.stakingPort }} \
+            --data-dir=/data \
+            --genesis-file=/genesis/genesis.json \
+            --db-type={{ .Values.dbType }} \
+            --index-enabled={{ .Values.api.indexEnabled }} \
+            --api-admin-enabled={{ .Values.api.adminEnabled }} \
+            --log-level={{ .Values.logLevel }} \
+            --plugin-dir=/data/plugins
+        volumeMounts:
+        - name: data
+          mountPath: /data
+        - name: genesis
+          mountPath: /genesis
+          readOnly: true
+        resources:
+          {{- toYaml .Values.resources | nindent 10 }}
+        livenessProbe:
+          tcpSocket:
+            port: {{ $network.httpPort }}
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          tcpSocket:
+            port: {{ $network.httpPort }}
+          initialDelaySeconds: 10
+          periodSeconds: 5
+      volumes:
+      - name: genesis
+        configMap:
+          name: {{ .Values.genesis.configMapName }}
+  volumeClaimTemplates:
+  - metadata:
+      name: data
+    spec:
+      accessModes: ["ReadWriteOnce"]
+      storageClassName: {{ .Values.storage.storageClass }}
+      resources:
+        requests:
+          storage: {{ .Values.storage.size }}

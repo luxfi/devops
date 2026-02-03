@@ -1,0 +1,73 @@
+# Network configuration
+network: mainnet  # mainnet, testnet, devnet
+
+# Network-specific settings
+networks:
+  mainnet:
+    networkID: 1
+    chainID: 96369
+    httpPort: 9630
+    stakingPort: 9631
+    namespace: lux-mainnet
+  testnet:
+    networkID: 2
+    chainID: 96368
+    httpPort: 9640
+    stakingPort: 9641
+    namespace: lux-testnet
+  devnet:
+    networkID: 3
+    chainID: 96369
+    httpPort: 9650
+    stakingPort: 9651
+    namespace: lux-devnet
+
+# Node configuration
+replicas: 5
+image:
+  repository: ghcr.io/luxfi/node
+  tag: latest
+  pullPolicy: Always
+
+# EVM plugin
+evmPlugin:
+  enabled: true
+  url: https://github.com/luxfi/evm/releases/download/v0.8.35/evm-plugin-linux-amd64
+  vmID: mgj786NP7uDwBCcq6YwThhaN8FLyybkCa4zBWTQbNgmK6k9A6
+
+# Resources
+resources:
+  requests:
+    memory: "1Gi"
+    cpu: "500m"
+  limits:
+    memory: "4Gi"
+    cpu: "2"
+
+# Storage
+storage:
+  size: 100Gi
+  storageClass: do-block-storage
+
+# Node exposure
+nodeServices:
+  enabled: true
+  type: LoadBalancer
+  annotations:
+    service.beta.kubernetes.io/do-loadbalancer-name: "luxd-{{ .network }}-{{ .index }}"
+
+# Logging
+logLevel: info
+
+# Database
+dbType: badgerdb
+
+# API settings
+api:
+  adminEnabled: true
+  indexEnabled: true
+  httpAllowedHosts: "*"
+
+# Genesis
+genesis:
+  configMapName: luxd-genesis

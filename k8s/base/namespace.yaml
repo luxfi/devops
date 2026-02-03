@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: lux-mainnet
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: lux-testnet
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: lux-devnet

@@ -1,0 +1,13 @@
+apiVersion: v2
+name: luxd
+description: Lux blockchain node deployment
+type: application
+version: 1.0.0
+appVersion: "1.23.4"
+keywords:
+  - blockchain
+  - lux
+  - validator
+maintainers:
+  - name: Lux Team
+    email: dev@lux.network
