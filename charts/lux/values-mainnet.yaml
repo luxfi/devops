@@ -1,0 +1,36 @@
+# Mainnet configuration overrides
+network: mainnet
+
+replicas: 5
+
+bootstrap:
+  useHostnames: true
+  nodeIDs:
+    - NodeID-Mf3JfSY91oDwfBqf7rCLmhg4NDtDghw1f
+    - NodeID-2TwSZ2oyeBK2mv7JiseEQ8m74rotDj4QR
+    - NodeID-Ld9VFBQ9zGbd79z2vzaAqkQ3jHuqbtRpo
+    - NodeID-8mY2fhUehN27v3LCU84BnnKEoeRfd2weC
+    - NodeID-4smuFz5Z9cm8BEyQU1oPQ9nwgXyMgaNqu
+  # RLP block import for C-chain bootstrap
+  rlpImport:
+    enabled: true
+    baseUrl: "https://raw.githubusercontent.com/luxfi/state/main/rlp/lux-mainnet"
+    rlpFilename: "lux-mainnet-96369.rlp"
+    multiPart: true
+    parts: ["aa", "ab", "ac", "ad", "ae", "af", "ag", "ah", "ai", "aj", "ak", "al", "am"]
+    minHeight: 1
+    timeout: 7200
+
+# Mainnet tracks specific subnet chains only
+chainTracking:
+  trackAllChains: false
+  trackedChains:
+    - "2fxVbTJfynNyMym6n7Eu2FM4VHYvuRM3PX5P4ZrGFPjak1LTPT"  # Zoo
+    - "2CydmYkERH2TnHLJqVctYvBf3ZSzR3uajUrc4nFrNs8R1Z4Zin"  # SPC
+    - "whQu11qn7Dt6sqZB4qbdzEuX7SfAuP5wYwrdvEvTcUrQAn3S1"   # Hanzo
+    - "29JSsswqnXVQ4AvvCQQEi8eyykByPd3y468EFzxxAsezzQyer8"   # Pars
+  aliases:
+    - zoo
+    - hanzo
+    - spc
+    - pars

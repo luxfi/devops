@@ -1,0 +1,224 @@
+{{- $network := index .Values.networks .Values.network }}
+{{- $namespace := $network.namespace }}
+{{- $stakingPort := $network.stakingPort }}
+{{- $httpPort := $network.httpPort }}
+{{- $replicas := int .Values.replicas }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: luxd-startup
+  namespace: {{ $namespace }}
+data:
+  startup.sh: |
+    #!/bin/sh
+    set -e
+
+    POD_INDEX=${HOSTNAME##*-}
+    echo "=== luxd startup for $HOSTNAME ({{ .Values.network }}, network-id={{ $network.networkID }}) ==="
+
+    # Staking keys are set up by init container
+    echo "Staking keys already in place for node $POD_INDEX"
+
+    # Build bootstrap list excluding self
+    {{- if .Values.bootstrap.useHostnames }}
+    # Using internal K8s DNS for bootstrap (recommended)
+    DNS_PREFIX="luxd"
+    DNS_SUFFIX="luxd-headless.{{ $namespace }}.svc.cluster.local"
+    BOOTSTRAP_IPS=""
+    BOOTSTRAP_IDS=""
+    {{- range $i := until $replicas }}
+    {{- $nodeID := "" }}
+    {{- if and $.Values.bootstrap.nodeIDs (gt (len $.Values.bootstrap.nodeIDs) $i) }}
+    {{- $nodeID = index $.Values.bootstrap.nodeIDs $i }}
+    {{- end }}
+    if [ "$POD_INDEX" != "{{ $i }}" ] && [ -n "{{ $nodeID }}" ]; then
+      CUR_HOST="${DNS_PREFIX}-{{ $i }}.${DNS_SUFFIX}:{{ $stakingPort }}"
+      if [ -n "$BOOTSTRAP_IPS" ]; then
+        BOOTSTRAP_IPS="${BOOTSTRAP_IPS},${CUR_HOST}"
+        BOOTSTRAP_IDS="${BOOTSTRAP_IDS},{{ $nodeID }}"
+      else
+        BOOTSTRAP_IPS="${CUR_HOST}"
+        BOOTSTRAP_IDS="{{ $nodeID }}"
+      fi
+    fi
+    {{- end }}
+    {{- else }}
+    # Using external IPs for bootstrap
+    BOOTSTRAP_IPS=""
+    BOOTSTRAP_IDS=""
+    {{- range $i := until $replicas }}
+    {{- $nodeID := "" }}
+    {{- $externalIP := "" }}
+    {{- if and $.Values.bootstrap.nodeIDs (gt (len $.Values.bootstrap.nodeIDs) $i) }}
+    {{- $nodeID = index $.Values.bootstrap.nodeIDs $i }}
+    {{- end }}
+    {{- if and $.Values.bootstrap.externalIPs (gt (len $.Values.bootstrap.externalIPs) $i) }}
+    {{- $externalIP = index $.Values.bootstrap.externalIPs $i }}
+    {{- end }}
+    if [ "$POD_INDEX" != "{{ $i }}" ] && [ -n "{{ $nodeID }}" ] && [ -n "{{ $externalIP }}" ]; then
+      if [ -n "$BOOTSTRAP_IPS" ]; then
+        BOOTSTRAP_IPS="${BOOTSTRAP_IPS},{{ $externalIP }}:{{ $stakingPort }}"
+        BOOTSTRAP_IDS="${BOOTSTRAP_IDS},{{ $nodeID }}"
+      else
+        BOOTSTRAP_IPS="{{ $externalIP }}:{{ $stakingPort }}"
+        BOOTSTRAP_IDS="{{ $nodeID }}"
+      fi
+    fi
+    {{- end }}
+    {{- end }}
+
+    # Get public IP
+    {{- if .Values.bootstrap.externalIPs }}
+    case "$POD_INDEX" in
+    {{- range $i := until $replicas }}
+    {{- if and $.Values.bootstrap.externalIPs (gt (len $.Values.bootstrap.externalIPs) $i) }}
+      {{ $i }}) PUBLIC_IP="{{ index $.Values.bootstrap.externalIPs $i }}" ;;
+    {{- end }}
+    {{- end }}
+      *) PUBLIC_IP=$(hostname -i) ;;
+    esac
+    {{- else }}
+    PUBLIC_IP=$(hostname -i)
+    {{- end }}
+
+    echo "  public-ip: $PUBLIC_IP"
+    echo "  bootstrap-ips: $BOOTSTRAP_IPS"
+    echo "  bootstrap-ids: $BOOTSTRAP_IDS"
+
+    # Build luxd arguments
+    ARGS="--network-id={{ $network.networkID }}"
+    ARGS="$ARGS --http-host=0.0.0.0"
+    ARGS="$ARGS --http-port={{ $httpPort }}"
+    ARGS="$ARGS --http-allowed-hosts={{ .Values.api.httpAllowedHosts }}"
+    ARGS="$ARGS --staking-port={{ $stakingPort }}"
+    ARGS="$ARGS --data-dir=/data"
+    ARGS="$ARGS --genesis-file=/genesis/genesis.json"
+    ARGS="$ARGS --db-type={{ .Values.dbType }}"
+    ARGS="$ARGS --index-enabled={{ .Values.api.indexEnabled }}"
+    ARGS="$ARGS --api-admin-enabled={{ .Values.api.adminEnabled }}"
+    ARGS="$ARGS --api-metrics-enabled={{ .Values.api.metricsEnabled }}"
+    ARGS="$ARGS --log-level={{ .Values.logLevel }}"
+    ARGS="$ARGS --plugin-dir=/data/plugins"
+    ARGS="$ARGS --staking-tls-cert-file=/data/staking/staker.crt"
+    ARGS="$ARGS --staking-tls-key-file=/data/staking/staker.key"
+
+    # Signer key is optional
+    if [ -f "/data/staking/signer.key" ]; then
+      ARGS="$ARGS --staking-signer-key-file=/data/staking/signer.key"
+    fi
+
+    ARGS="$ARGS --consensus-sample-size={{ .Values.consensus.sampleSize }}"
+    ARGS="$ARGS --consensus-quorum-size={{ .Values.consensus.quorumSize }}"
+    ARGS="$ARGS --sybil-protection-enabled={{ .Values.consensus.sybilProtectionEnabled }}"
+    ARGS="$ARGS --network-require-validator-to-connect={{ .Values.consensus.requireValidatorToConnect }}"
+    ARGS="$ARGS --network-allow-private-ips={{ .Values.consensus.allowPrivateIPs }}"
+
+    if [ -n "$PUBLIC_IP" ]; then
+      ARGS="$ARGS --public-ip=$PUBLIC_IP"
+    fi
+
+    if [ -n "$BOOTSTRAP_IPS" ]; then
+      ARGS="$ARGS --bootstrap-ips=$BOOTSTRAP_IPS"
+      ARGS="$ARGS --bootstrap-ids=$BOOTSTRAP_IDS"
+    fi
+
+    # Chain tracking
+    {{- if .Values.chainTracking.trackAllChains }}
+    ARGS="$ARGS --track-all-chains"
+    {{- else if .Values.chainTracking.trackedChains }}
+    ARGS="$ARGS --track-chains={{ join "," .Values.chainTracking.trackedChains }}"
+    {{- end }}
+
+    # Start luxd in background (allows post-start bootstrap logic)
+    /luxd/build/luxd $ARGS &
+    LUXD_PID=$!
+
+    # Disable set -e for bootstrap section
+    set +e
+
+    # Wait for node to be healthy
+    echo "[BOOTSTRAP] Waiting for node health..."
+    i=0
+    while [ "$i" -lt 180 ]; do
+      if curl -sf -m 2 http://127.0.0.1:{{ $httpPort }}/ext/health >/dev/null 2>&1; then
+        echo "[BOOTSTRAP] Node healthy after ${i}s"
+        break
+      fi
+      i=$((i + 1))
+      sleep 1
+    done
+
+    # Set up chain aliases
+    {{- if .Values.chainTracking.aliases }}
+    {{- range .Values.chainTracking.aliases }}
+    curl -s -m 5 -X POST -H 'Content-Type: application/json' \
+      --data '{"jsonrpc":"2.0","id":1,"method":"admin.aliasChain","params":{"chain":"C","alias":"{{ . }}"}}' \
+      http://127.0.0.1:{{ $httpPort }}/ext/admin >/dev/null 2>&1 || true
+    {{- end }}
+    {{- end }}
+
+    {{- if .Values.bootstrap.rlpImport.enabled }}
+    # C-Chain RLP import
+    MARKER="/data/.bootstrap-{{ .Values.network }}-import.done"
+    BOOTSTRAP_DIR="/data/bootstrap"
+
+    if [ ! -f "$MARKER" ]; then
+      height_hex=$(curl -s -m 10 -X POST -H 'Content-Type: application/json' \
+        --data '{"jsonrpc":"2.0","id":1,"method":"eth_blockNumber","params":[]}' \
+        http://127.0.0.1:{{ $httpPort }}/ext/bc/C/rpc | sed -n 's/.*"result":"\(0x[0-9A-Fa-f]*\)".*/\1/p' | head -n1)
+
+      if [ -z "$height_hex" ]; then
+        height_hex="0x0"
+      fi
+
+      height_dec=$(printf '%d' "$height_hex" 2>/dev/null || echo 0)
+      echo "[BOOTSTRAP] C-Chain height: $height_dec (hex: $height_hex)"
+
+      if [ "$height_dec" -lt "{{ .Values.bootstrap.rlpImport.minHeight }}" ]; then
+        echo "[BOOTSTRAP] C-Chain below target ({{ .Values.bootstrap.rlpImport.minHeight }}), starting RLP import..."
+        mkdir -p "$BOOTSTRAP_DIR"
+        RLP_FILE="${BOOTSTRAP_DIR}/{{ .Values.bootstrap.rlpImport.rlpFilename }}"
+
+        {{- if .Values.bootstrap.rlpImport.multiPart }}
+        # Download multi-part RLP
+        if [ ! -s "$RLP_FILE" ]; then
+          echo "[BOOTSTRAP] Downloading RLP parts..."
+          {{- range .Values.bootstrap.rlpImport.parts }}
+          PART_FILE="${BOOTSTRAP_DIR}/{{ $.Values.bootstrap.rlpImport.rlpFilename }}.part.{{ . }}"
+          if [ ! -s "$PART_FILE" ]; then
+            echo "[BOOTSTRAP] Downloading part {{ . }}..."
+            curl -fL --retry 5 --retry-delay 2 --retry-connrefused -o "$PART_FILE" \
+              "{{ $.Values.bootstrap.rlpImport.baseUrl }}/{{ $.Values.bootstrap.rlpImport.rlpFilename | replace ".rlp" "" }}.part.{{ . }}" || true
+          fi
+          {{- end }}
+          echo "[BOOTSTRAP] Assembling RLP file..."
+          cat "${BOOTSTRAP_DIR}"/{{ .Values.bootstrap.rlpImport.rlpFilename }}.part.* > "$RLP_FILE" 2>/dev/null || true
+        fi
+        {{- else }}
+        # Download single RLP file
+        if [ ! -s "$RLP_FILE" ]; then
+          echo "[BOOTSTRAP] Downloading RLP..."
+          curl -fL --retry 5 --retry-delay 2 --retry-connrefused -o "$RLP_FILE" \
+            "{{ .Values.bootstrap.rlpImport.baseUrl }}/{{ .Values.bootstrap.rlpImport.rlpFilename }}" || true
+        fi
+        {{- end }}
+
+        if [ -s "$RLP_FILE" ]; then
+          echo "[BOOTSTRAP] Starting import of $RLP_FILE..."
+          import_payload=$(printf '{"jsonrpc":"2.0","id":1,"method":"admin_importChain","params":["%s"]}' "$RLP_FILE")
+          import_result=$(curl -s -m {{ .Values.bootstrap.rlpImport.timeout }} -X POST -H 'Content-Type: application/json' --data "$import_payload" http://127.0.0.1:{{ $httpPort }}/ext/bc/C/rpc || true)
+          echo "[BOOTSTRAP] Import result: $import_result"
+          echo "$import_result" | grep -q '"success":true' && touch "$MARKER" && echo "[BOOTSTRAP] Import complete" || echo "[BOOTSTRAP] Import did not return success"
+        else
+          echo "[BOOTSTRAP] RLP file missing or empty, skipping"
+        fi
+      else
+        echo "[BOOTSTRAP] C-Chain already at height $height_dec, skipping import"
+        touch "$MARKER"
+      fi
+    else
+      echo "[BOOTSTRAP] Import marker exists, skipping bootstrap"
+    fi
+    {{- end }}
+
+    wait "$LUXD_PID"

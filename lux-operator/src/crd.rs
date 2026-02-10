@@ -59,6 +59,18 @@ pub struct LuxNetworkSpec {
     /// Service configuration
     #[serde(default)]
     pub service: ServiceSpec,
+
+    /// Chain tracking configuration
+    #[serde(default)]
+    pub chain_tracking: ChainTrackingSpec,
+
+    /// Snapshot configuration for fast bootstrap
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub snapshot: Option<SnapshotSpec>,
+
+    /// RLP import configuration for C-chain bootstrap
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub rlp_import: Option<RlpImportSpec>,
 }
 
 /// Image configuration
@@ -208,6 +220,82 @@ pub struct ServiceSpec {
 
 fn default_service_type() -> String {
     "ClusterIP".to_string()
+}
+
+/// Chain tracking configuration
+#[derive(Deserialize, Serialize, Clone, Debug, Default, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct ChainTrackingSpec {
+    /// Track all chains automatically (for testnet/devnet)
+    #[serde(default)]
+    pub track_all_chains: bool,
+
+    /// Specific chain IDs to track (for mainnet)
+    #[serde(default)]
+    pub tracked_chains: Vec<String>,
+
+    /// Chain aliases to register (e.g., "zoo", "hanzo", "spc")
+    #[serde(default)]
+    pub aliases: Vec<String>,
+}
+
+/// Snapshot configuration for fast node bootstrap
+#[derive(Deserialize, Serialize, Clone, Debug, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct SnapshotSpec {
+    /// Enable snapshot restore on pod init
+    #[serde(default)]
+    pub enabled: bool,
+
+    /// URL to download snapshot archive (tar.zst)
+    pub url: String,
+
+    /// Expected snapshot size in bytes (for progress display)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub expected_size: Option<u64>,
+
+    /// Skip snapshot if data directory already has state
+    #[serde(default = "default_true")]
+    pub skip_if_exists: bool,
+}
+
+/// RLP import configuration for C-chain block data
+#[derive(Deserialize, Serialize, Clone, Debug, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct RlpImportSpec {
+    /// Enable RLP import after node startup
+    #[serde(default)]
+    pub enabled: bool,
+
+    /// Base URL for RLP file download
+    pub base_url: String,
+
+    /// RLP filename (e.g., "lux-mainnet-96369.rlp")
+    pub filename: String,
+
+    /// Use multi-part download (e.g., .part.aa, .part.ab, ...)
+    #[serde(default)]
+    pub multi_part: bool,
+
+    /// Part suffixes for multi-part download
+    #[serde(default)]
+    pub parts: Vec<String>,
+
+    /// Minimum block height to trigger import (skip if already above)
+    #[serde(default = "default_min_height")]
+    pub min_height: u64,
+
+    /// Import timeout in seconds
+    #[serde(default = "default_import_timeout")]
+    pub timeout: u64,
+}
+
+fn default_min_height() -> u64 {
+    1
+}
+
+fn default_import_timeout() -> u64 {
+    7200
 }
 
 /// Status of a LuxNetwork

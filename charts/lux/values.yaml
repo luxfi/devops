@@ -1,0 +1,120 @@
+# Lux blockchain node Helm chart values
+# Base config (used as defaults, override per network with values-{network}.yaml)
+
+network: devnet
+
+# Network-specific settings
+networks:
+  mainnet:
+    networkID: 1
+    chainID: 96369
+    httpPort: 9630
+    stakingPort: 9631
+    namespace: lux-mainnet
+  testnet:
+    networkID: 2
+    chainID: 96368
+    httpPort: 9640
+    stakingPort: 9641
+    namespace: lux-testnet
+  devnet:
+    networkID: 3
+    chainID: 96370
+    httpPort: 9650
+    stakingPort: 9651
+    namespace: lux-devnet
+
+# 5 replicas for production consensus
+replicas: 5
+
+image:
+  repository: registry.digitalocean.com/hanzo/bootnode
+  tag: luxd-v1.23.11
+  pullPolicy: Always
+
+imagePullSecrets:
+  - name: registry-hanzo
+
+# Bootstrap configuration
+bootstrap:
+  nodeIDs:
+    - NodeID-Mf3JfSY91oDwfBqf7rCLmhg4NDtDghw1f
+    - NodeID-2TwSZ2oyeBK2mv7JiseEQ8m74rotDj4QR
+    - NodeID-Ld9VFBQ9zGbd79z2vzaAqkQ3jHuqbtRpo
+    - NodeID-8mY2fhUehN27v3LCU84BnnKEoeRfd2weC
+    - NodeID-4smuFz5Z9cm8BEyQU1oPQ9nwgXyMgaNqu
+  useHostnames: true
+  externalIPs: []
+  # RLP block import configuration
+  rlpImport:
+    enabled: false
+    baseUrl: ""
+    rlpFilename: ""
+    multiPart: false
+    parts: []
+    minHeight: 1
+    timeout: 7200
+
+# Consensus settings (5-node network)
+consensus:
+  sampleSize: 5
+  quorumSize: 4
+  sybilProtectionEnabled: false
+  requireValidatorToConnect: false
+  allowPrivateIPs: true
+
+# Chain tracking
+chainTracking:
+  trackAllChains: true
+  trackedChains: []
+  aliases:
+    - zoo
+    - hanzo
+    - spc
+    - pars
+
+# Init container mode
+initMode:
+  # Set to true to clear chain data on pod restart (for re-genesis)
+  clearData: false
+
+# Staking keys
+staking:
+  secretName: luxd-staking
+
+# Resources
+resources:
+  requests:
+    memory: "1Gi"
+    cpu: "500m"
+  limits:
+    memory: "4Gi"
+    cpu: "2"
+
+# Storage
+storage:
+  size: 100Gi
+  storageClass: do-block-storage
+
+# Node exposure
+nodeServices:
+  enabled: true
+  type: LoadBalancer
+  annotations: {}
+
+# Logging
+logLevel: info
+
+# Database
+dbType: badgerdb
+
+# API settings
+api:
+  adminEnabled: true
+  metricsEnabled: true
+  indexEnabled: true
+  httpAllowedHosts: "*"
+
+# Genesis
+genesis:
+  configMapName: luxd-genesis

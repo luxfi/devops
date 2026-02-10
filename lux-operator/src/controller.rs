@@ -345,10 +345,20 @@ async fn create_statefulset(network: &LuxNetwork, ctx: &Context) -> Result<()> {
         name: "luxd".to_string(),
         image: Some(format!("{}:{}", spec.image.repository, spec.image.tag)),
         image_pull_policy: Some(spec.image.pull_policy.clone()),
-        args: Some(vec![
-            "--config-file=/etc/luxd/config.json".to_string(),
-            "--data-dir=/data".to_string(),
-        ]),
+        args: Some({
+            let mut args = vec![
+                "--config-file=/etc/luxd/config.json".to_string(),
+                "--data-dir=/data".to_string(),
+            ];
+            // Add chain tracking flags
+            let tracking = &spec.chain_tracking;
+            if tracking.track_all_chains {
+                args.push("--track-all-chains".to_string());
+            } else if !tracking.tracked_chains.is_empty() {
+                args.push(format!("--track-chains={}", tracking.tracked_chains.join(",")));
+            }
+            args
+        }),
         ports: Some(vec![
             ContainerPort {
                 name: Some("http".to_string()),

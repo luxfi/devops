@@ -1,0 +1,36 @@
+# Testnet configuration overrides
+network: testnet
+
+replicas: 5
+
+bootstrap:
+  useHostnames: true
+  nodeIDs:
+    - NodeID-Mf3JfSY91oDwfBqf7rCLmhg4NDtDghw1f
+    - NodeID-2TwSZ2oyeBK2mv7JiseEQ8m74rotDj4QR
+    - NodeID-Ld9VFBQ9zGbd79z2vzaAqkQ3jHuqbtRpo
+    - NodeID-8mY2fhUehN27v3LCU84BnnKEoeRfd2weC
+    - NodeID-4smuFz5Z9cm8BEyQU1oPQ9nwgXyMgaNqu
+  # RLP import for testnet C-chain
+  rlpImport:
+    enabled: true
+    baseUrl: "https://raw.githubusercontent.com/luxfi/state/main/rlp/lux-testnet"
+    rlpFilename: "lux-testnet-96368.rlp"
+    multiPart: false
+    parts: []
+    minHeight: 200
+    timeout: 1800
+
+# Testnet tracks all chains automatically
+chainTracking:
+  trackAllChains: true
+  trackedChains: []
+  aliases:
+    - zoo
+    - hanzo
+    - spc
+    - pars
+    - zootest
+    - hanzotest
+    - spctest
+    - parstest
