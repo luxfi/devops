@@ -9,7 +9,7 @@ readme = "README.md"
 
 [dependencies]
 # Lux types - TODO: replace with lux-types crate when available
-primitive-types = { version = "0.12", features = ["impl-serde"] }
+primitive-types = { version = "0.14", features = ["impl-serde"] }
 
 # AWS SDK (modern versions)
 aws-config = { workspace = true }
