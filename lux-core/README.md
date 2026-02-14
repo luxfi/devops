@@ -1,6 +1,6 @@
 
-avalanche-ops spec.
+lux-ops spec.
 
-![Crates.io](https://img.shields.io/crates/v/avalanche-ops?logo=rust&style=for-the-badge)
+![Crates.io](https://img.shields.io/crates/v/lux-ops?logo=rust&style=for-the-badge)
 
-https://crates.io/crates/avalanche-ops
+https://crates.io/crates/lux-ops
