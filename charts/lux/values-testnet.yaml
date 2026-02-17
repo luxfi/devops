@@ -22,9 +22,9 @@ bootstrap:
     minHeight: 200
     timeout: 600
 
-# Wipe data on restart for re-genesis with correct 2-alloc genesis
+# Data wipe no longer needed (RLP import complete, 218 blocks verified)
 initMode:
-  clearData: true
+  clearData: false
 
 # Testnet requires sybil protection
 consensus:

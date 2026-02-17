@@ -22,9 +22,9 @@ bootstrap:
     minHeight: 1000000
     timeout: 7200
 
-# Wipe data on restart (old data used network-96369, now uses network-1)
+# Data wipe no longer needed (RLP import complete, 1,082,780 blocks verified)
 initMode:
-  clearData: true
+  clearData: false
 
 # Mainnet requires sybil protection
 consensus:
