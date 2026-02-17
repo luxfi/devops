@@ -6,19 +6,21 @@ network: devnet
 # Network-specific settings
 networks:
   mainnet:
-    networkID: 1
+    # Use C-chain IDs as network IDs (custom network allows upgrade overrides)
+    # Genesis says networkID=1/2/3 but --network-id flag sets P2P identity
+    networkID: 96369
     chainID: 96369
     httpPort: 9630
     stakingPort: 9631
     namespace: lux-mainnet
   testnet:
-    networkID: 2
+    networkID: 96368
     chainID: 96368
     httpPort: 9640
     stakingPort: 9641
     namespace: lux-testnet
   devnet:
-    networkID: 3
+    networkID: 96370
     chainID: 96370
     httpPort: 9650
     stakingPort: 9651
@@ -38,11 +40,11 @@ imagePullSecrets:
 # Bootstrap configuration
 bootstrap:
   nodeIDs:
-    - NodeID-Mf3JfSY91oDwfBqf7rCLmhg4NDtDghw1f
-    - NodeID-2TwSZ2oyeBK2mv7JiseEQ8m74rotDj4QR
-    - NodeID-Ld9VFBQ9zGbd79z2vzaAqkQ3jHuqbtRpo
-    - NodeID-8mY2fhUehN27v3LCU84BnnKEoeRfd2weC
-    - NodeID-4smuFz5Z9cm8BEyQU1oPQ9nwgXyMgaNqu
+    - NodeID-8mCxB5QtMDX1S84zaXF7i8vGcP4FJxACH
+    - NodeID-Pss5uJBPNECYvPZVuas9sE8ZwSpwP43Tr
+    - NodeID-F1snfkawAgudnrp4wZWRK6syZwokPRfb2
+    - NodeID-H7KVD16b5b8uzWy9uUdrjzsBLEbbTaUKc
+    - NodeID-aVsqjzUqNNTNDxbRwkCUrwnVgEe5x8Qc
   useHostnames: true
   externalIPs: []
   # RLP block import configuration
@@ -122,6 +124,30 @@ api:
   metricsEnabled: true
   indexEnabled: true
   httpAllowedHosts: "*"
+
+# Upgrade config override (all upgrades enabled from genesis for custom networks)
+# This must match the schedule used when the database was first created
+upgradeConfig:
+  enabled: true
+  content: |
+    {
+      "apricotPhase1Time": "2020-12-05T05:00:00Z",
+      "apricotPhase2Time": "2020-12-05T05:00:00Z",
+      "apricotPhase3Time": "2020-12-05T05:00:00Z",
+      "apricotPhase4Time": "2020-12-05T05:00:00Z",
+      "apricotPhase4MinPChainHeight": 0,
+      "apricotPhase5Time": "2020-12-05T05:00:00Z",
+      "apricotPhasePre6Time": "2020-12-05T05:00:00Z",
+      "apricotPhase6Time": "2020-12-05T05:00:00Z",
+      "apricotPhasePost6Time": "2020-12-05T05:00:00Z",
+      "banffTime": "2020-12-05T05:00:00Z",
+      "cortinaTime": "2020-12-05T05:00:00Z",
+      "cortinaXChainStopVertexID": "11111111111111111111111111111111LpoYY",
+      "durangoTime": "2020-12-05T05:00:00Z",
+      "etnaTime": "2020-12-05T05:00:00Z",
+      "fortunaTime": "2020-12-05T05:00:00Z",
+      "graniteTime": "9999-12-01T00:00:00Z"
+    }
 
 # Genesis
 genesis:

@@ -174,6 +174,13 @@ data:
     ARGS="$ARGS --track-chains={{ join "," .Values.chainTracking.trackedChains }}"
     {{- end }}
 
+    # Upgrade config override (all upgrades from genesis for custom networks)
+    {{- if .Values.upgradeConfig.enabled }}
+    UPGRADE_JSON='{{ .Values.upgradeConfig.content | replace "\n" "" | trim }}'
+    UPGRADE_B64=$(echo "$UPGRADE_JSON" | base64 | tr -d '\n')
+    ARGS="$ARGS --upgrade-file-content=$UPGRADE_B64"
+    {{- end }}
+
     # Start luxd in background (allows post-start bootstrap logic)
     /luxd/build/luxd $ARGS &
     LUXD_PID=$!

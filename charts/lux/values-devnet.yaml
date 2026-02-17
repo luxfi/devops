@@ -6,11 +6,11 @@ replicas: 5
 bootstrap:
   useHostnames: true
   nodeIDs:
-    - NodeID-Mf3JfSY91oDwfBqf7rCLmhg4NDtDghw1f
-    - NodeID-2TwSZ2oyeBK2mv7JiseEQ8m74rotDj4QR
-    - NodeID-Ld9VFBQ9zGbd79z2vzaAqkQ3jHuqbtRpo
-    - NodeID-8mY2fhUehN27v3LCU84BnnKEoeRfd2weC
-    - NodeID-4smuFz5Z9cm8BEyQU1oPQ9nwgXyMgaNqu
+    - NodeID-8mCxB5QtMDX1S84zaXF7i8vGcP4FJxACH
+    - NodeID-Pss5uJBPNECYvPZVuas9sE8ZwSpwP43Tr
+    - NodeID-F1snfkawAgudnrp4wZWRK6syZwokPRfb2
+    - NodeID-H7KVD16b5b8uzWy9uUdrjzsBLEbbTaUKc
+    - NodeID-aVsqjzUqNNTNDxbRwkCUrwnVgEe5x8Qc
 
 # Devnet consensus - sybil off for development
 consensus:

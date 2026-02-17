@@ -6,20 +6,14 @@ replicas: 5
 bootstrap:
   useHostnames: true
   nodeIDs:
-    - NodeID-Mf3JfSY91oDwfBqf7rCLmhg4NDtDghw1f
-    - NodeID-2TwSZ2oyeBK2mv7JiseEQ8m74rotDj4QR
-    - NodeID-Ld9VFBQ9zGbd79z2vzaAqkQ3jHuqbtRpo
-    - NodeID-8mY2fhUehN27v3LCU84BnnKEoeRfd2weC
-    - NodeID-4smuFz5Z9cm8BEyQU1oPQ9nwgXyMgaNqu
-  # RLP block import for C-chain bootstrap
+    - NodeID-8mCxB5QtMDX1S84zaXF7i8vGcP4FJxACH
+    - NodeID-Pss5uJBPNECYvPZVuas9sE8ZwSpwP43Tr
+    - NodeID-F1snfkawAgudnrp4wZWRK6syZwokPRfb2
+    - NodeID-H7KVD16b5b8uzWy9uUdrjzsBLEbbTaUKc
+    - NodeID-aVsqjzUqNNTNDxbRwkCUrwnVgEe5x8Qc
+  # RLP import disabled - genesis hash mismatch after deploy key allocation
   rlpImport:
-    enabled: true
-    baseUrl: "https://raw.githubusercontent.com/luxfi/state/main/rlp/lux-mainnet"
-    rlpFilename: "lux-mainnet-96369.rlp"
-    multiPart: true
-    parts: ["aa", "ab", "ac", "ad", "ae", "af", "ag", "ah", "ai", "aj", "ak", "al", "am"]
-    minHeight: 1
-    timeout: 7200
+    enabled: false
 
 # Mainnet requires sybil protection
 consensus:
