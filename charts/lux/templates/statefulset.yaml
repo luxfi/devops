@@ -49,7 +49,7 @@ spec:
 
           {{- if .Values.initMode.clearData }}
           echo "=== Clearing data for re-genesis (preserving RLP) ==="
-          rm -rf /data/chainData /data/db /data/genesis.bytes
+          rm -rf /data/chainData /data/db /data/genesis.bytes /data/.bootstrap-*-import.done
           echo "Data cleared"
           {{- else }}
           echo "=== Preserving existing data ==="

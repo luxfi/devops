@@ -11,9 +11,20 @@ bootstrap:
     - NodeID-F1snfkawAgudnrp4wZWRK6syZwokPRfb2
     - NodeID-H7KVD16b5b8uzWy9uUdrjzsBLEbbTaUKc
     - NodeID-aVsqjzUqNNTNDxbRwkCUrwnVgEe5x8Qc
-  # RLP import disabled - genesis hash mismatch after deploy key allocation
+  # C-Chain RLP import (219 blocks from canonical genesis)
+  # Genesis hash: 0x1c5fe377... (2-alloc canonical, matches Helm chart genesis)
   rlpImport:
-    enabled: false
+    enabled: true
+    baseUrl: "https://raw.githubusercontent.com/luxfi/state/main/rlp/lux-testnet"
+    rlpFilename: "lux-testnet-96368.rlp"
+    multiPart: false
+    parts: []
+    minHeight: 200
+    timeout: 600
+
+# Wipe data on restart for re-genesis with correct 2-alloc genesis
+initMode:
+  clearData: true
 
 # Testnet requires sybil protection
 consensus:

@@ -4,23 +4,24 @@
 network: devnet
 
 # Network-specific settings
+# networkID MUST match genesis.json networkID (node validates at startup)
+# Well-known IDs: mainnet=1, testnet=2, devnet=3
+# C-chain IDs (96369/96368/96370) are chain IDs, NOT network IDs
 networks:
   mainnet:
-    # Use C-chain IDs as network IDs (custom network allows upgrade overrides)
-    # Genesis says networkID=1/2/3 but --network-id flag sets P2P identity
-    networkID: 96369
+    networkID: 1
     chainID: 96369
-    httpPort: 9630
-    stakingPort: 9631
+    httpPort: 9650
+    stakingPort: 9651
     namespace: lux-mainnet
   testnet:
-    networkID: 96368
+    networkID: 2
     chainID: 96368
-    httpPort: 9640
-    stakingPort: 9641
+    httpPort: 9650
+    stakingPort: 9651
     namespace: lux-testnet
   devnet:
-    networkID: 96370
+    networkID: 3
     chainID: 96370
     httpPort: 9650
     stakingPort: 9651
@@ -125,10 +126,10 @@ api:
   indexEnabled: true
   httpAllowedHosts: "*"
 
-# Upgrade config override (all upgrades enabled from genesis for custom networks)
-# This must match the schedule used when the database was first created
+# Upgrade config override (only for custom network IDs, NOT well-known 1/2/3)
+# Well-known network IDs use built-in upgrade schedules
 upgradeConfig:
-  enabled: true
+  enabled: false
   content: |
     {
       "apricotPhase1Time": "2020-12-05T05:00:00Z",

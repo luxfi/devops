@@ -11,9 +11,20 @@ bootstrap:
     - NodeID-F1snfkawAgudnrp4wZWRK6syZwokPRfb2
     - NodeID-H7KVD16b5b8uzWy9uUdrjzsBLEbbTaUKc
     - NodeID-aVsqjzUqNNTNDxbRwkCUrwnVgEe5x8Qc
-  # RLP import disabled - genesis hash mismatch after deploy key allocation
+  # C-Chain RLP import (1,082,780 blocks from canonical genesis)
+  # Genesis hash verified: 0x3f4fa2a0... matches running nodes
   rlpImport:
-    enabled: false
+    enabled: true
+    baseUrl: "https://raw.githubusercontent.com/luxfi/state/main/rlp/lux-mainnet"
+    rlpFilename: "lux-mainnet-96369.rlp"
+    multiPart: true
+    parts: ["aa","ab","ac","ad","ae","af","ag","ah","ai","aj","ak","al","am"]
+    minHeight: 1000000
+    timeout: 7200
+
+# Wipe data on restart (old data used network-96369, now uses network-1)
+initMode:
+  clearData: true
 
 # Mainnet requires sybil protection
 consensus:
