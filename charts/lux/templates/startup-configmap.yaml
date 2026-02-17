@@ -19,49 +19,36 @@ data:
     # Staking keys are set up by init container
     echo "Staking keys already in place for node $POD_INDEX"
 
-    # Build bootstrap list excluding self
+    # Build bootstrap node list excluding self
+    # Uses --bootstrap-nodes (endpoint-only, NodeID discovered from TLS cert)
     {{- if .Values.bootstrap.useHostnames }}
     # Using internal K8s DNS for bootstrap (recommended)
     DNS_PREFIX="luxd"
     DNS_SUFFIX="luxd-headless.{{ $namespace }}.svc.cluster.local"
-    BOOTSTRAP_IPS=""
-    BOOTSTRAP_IDS=""
+    BOOTSTRAP_NODES=""
     {{- range $i := until $replicas }}
-    {{- $nodeID := "" }}
-    {{- if and $.Values.bootstrap.nodeIDs (gt (len $.Values.bootstrap.nodeIDs) $i) }}
-    {{- $nodeID = index $.Values.bootstrap.nodeIDs $i }}
-    {{- end }}
-    if [ "$POD_INDEX" != "{{ $i }}" ] && [ -n "{{ $nodeID }}" ]; then
+    if [ "$POD_INDEX" != "{{ $i }}" ]; then
       CUR_HOST="${DNS_PREFIX}-{{ $i }}.${DNS_SUFFIX}:{{ $stakingPort }}"
-      if [ -n "$BOOTSTRAP_IPS" ]; then
-        BOOTSTRAP_IPS="${BOOTSTRAP_IPS},${CUR_HOST}"
-        BOOTSTRAP_IDS="${BOOTSTRAP_IDS},{{ $nodeID }}"
+      if [ -n "$BOOTSTRAP_NODES" ]; then
+        BOOTSTRAP_NODES="${BOOTSTRAP_NODES},${CUR_HOST}"
       else
-        BOOTSTRAP_IPS="${CUR_HOST}"
-        BOOTSTRAP_IDS="{{ $nodeID }}"
+        BOOTSTRAP_NODES="${CUR_HOST}"
       fi
     fi
     {{- end }}
     {{- else }}
     # Using external IPs for bootstrap
-    BOOTSTRAP_IPS=""
-    BOOTSTRAP_IDS=""
+    BOOTSTRAP_NODES=""
     {{- range $i := until $replicas }}
-    {{- $nodeID := "" }}
     {{- $externalIP := "" }}
-    {{- if and $.Values.bootstrap.nodeIDs (gt (len $.Values.bootstrap.nodeIDs) $i) }}
-    {{- $nodeID = index $.Values.bootstrap.nodeIDs $i }}
-    {{- end }}
     {{- if and $.Values.bootstrap.externalIPs (gt (len $.Values.bootstrap.externalIPs) $i) }}
     {{- $externalIP = index $.Values.bootstrap.externalIPs $i }}
     {{- end }}
-    if [ "$POD_INDEX" != "{{ $i }}" ] && [ -n "{{ $nodeID }}" ] && [ -n "{{ $externalIP }}" ]; then
-      if [ -n "$BOOTSTRAP_IPS" ]; then
-        BOOTSTRAP_IPS="${BOOTSTRAP_IPS},{{ $externalIP }}:{{ $stakingPort }}"
-        BOOTSTRAP_IDS="${BOOTSTRAP_IDS},{{ $nodeID }}"
+    if [ "$POD_INDEX" != "{{ $i }}" ] && [ -n "{{ $externalIP }}" ]; then
+      if [ -n "$BOOTSTRAP_NODES" ]; then
+        BOOTSTRAP_NODES="${BOOTSTRAP_NODES},{{ $externalIP }}:{{ $stakingPort }}"
       else
-        BOOTSTRAP_IPS="{{ $externalIP }}:{{ $stakingPort }}"
-        BOOTSTRAP_IDS="{{ $nodeID }}"
+        BOOTSTRAP_NODES="{{ $externalIP }}:{{ $stakingPort }}"
       fi
     fi
     {{- end }}
@@ -92,11 +79,11 @@ data:
         TOKEN=$(cat "$SA_TOKEN_FILE")
         echo "[PUBLIC-IP] Discovering external IP from service ${SVC_NAME} in ${NAMESPACE}..."
         ATTEMPT=0
-        MAX_ATTEMPTS=30
+        MAX_ATTEMPTS=12
         while [ "$ATTEMPT" -lt "$MAX_ATTEMPTS" ]; do
-          SVC_JSON=$(wget -q -O - \
-            --header="Authorization: Bearer ${TOKEN}" \
-            --ca-certificate="$CA_CERT" \
+          SVC_JSON=$(curl -sf -m 5 \
+            -H "Authorization: Bearer ${TOKEN}" \
+            --cacert "$CA_CERT" \
             "${K8S_API}/api/v1/namespaces/${NAMESPACE}/services/${SVC_NAME}" 2>/dev/null || true)
 
           if [ -n "$SVC_JSON" ]; then
@@ -127,9 +114,18 @@ data:
       echo "[PUBLIC-IP] WARNING: Using pod IP $PUBLIC_IP (no external IP found)"
     fi
 
+    {{- if .Values.chainConfigs.enabled }}
+    # Write EVM chain configs for C-chain and deployed subnet chains
+    CHAIN_CFG='{{ .Values.chainConfigs.evmConfig }}'
+    for chain in C{{ range .Values.chainConfigs.blockchainIDs }} {{ . }}{{ end }}; do
+      mkdir -p /data/configs/chains/$chain
+      echo "$CHAIN_CFG" > /data/configs/chains/$chain/config.json
+    done
+    echo "Chain configs written for C{{ range .Values.chainConfigs.blockchainIDs }} + {{ . | trunc 8 }}{{ end }}"
+    {{- end }}
+
     echo "  public-ip: $PUBLIC_IP"
-    echo "  bootstrap-ips: $BOOTSTRAP_IPS"
-    echo "  bootstrap-ids: $BOOTSTRAP_IDS"
+    echo "  bootstrap-nodes: $BOOTSTRAP_NODES"
 
     # Build luxd arguments
     ARGS="--network-id={{ $network.networkID }}"
@@ -140,9 +136,13 @@ data:
     ARGS="$ARGS --data-dir=/data"
     ARGS="$ARGS --genesis-file=/genesis/genesis.json"
     ARGS="$ARGS --db-type={{ .Values.dbType }}"
+    {{- if .Values.chainConfigs.enabled }}
+    ARGS="$ARGS --chain-config-dir=/data/configs/chains"
+    {{- end }}
     ARGS="$ARGS --index-enabled={{ .Values.api.indexEnabled }}"
     ARGS="$ARGS --api-admin-enabled={{ .Values.api.adminEnabled }}"
     ARGS="$ARGS --api-metrics-enabled={{ .Values.api.metricsEnabled }}"
+    ARGS="$ARGS --api-keystore-enabled=true"
     ARGS="$ARGS --log-level={{ .Values.logLevel }}"
     ARGS="$ARGS --plugin-dir=/data/plugins"
     ARGS="$ARGS --staking-tls-cert-file=/data/staking/staker.crt"
@@ -163,9 +163,8 @@ data:
       ARGS="$ARGS --public-ip=$PUBLIC_IP"
     fi
 
-    if [ -n "$BOOTSTRAP_IPS" ]; then
-      ARGS="$ARGS --bootstrap-ips=$BOOTSTRAP_IPS"
-      ARGS="$ARGS --bootstrap-ids=$BOOTSTRAP_IDS"
+    if [ -n "$BOOTSTRAP_NODES" ]; then
+      ARGS="$ARGS --bootstrap-nodes=$BOOTSTRAP_NODES"
     fi
 
     # Chain tracking

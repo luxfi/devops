@@ -1,0 +1,37 @@
+# Devnet configuration overrides
+network: devnet
+
+replicas: 5
+
+bootstrap:
+  useHostnames: true
+  nodeIDs:
+    - NodeID-Mf3JfSY91oDwfBqf7rCLmhg4NDtDghw1f
+    - NodeID-2TwSZ2oyeBK2mv7JiseEQ8m74rotDj4QR
+    - NodeID-Ld9VFBQ9zGbd79z2vzaAqkQ3jHuqbtRpo
+    - NodeID-8mY2fhUehN27v3LCU84BnnKEoeRfd2weC
+    - NodeID-4smuFz5Z9cm8BEyQU1oPQ9nwgXyMgaNqu
+
+# Devnet consensus - sybil off for development
+consensus:
+  sybilProtectionEnabled: false
+  allowPrivateIPs: true
+
+# Devnet tracks all chains
+chainTracking:
+  trackAllChains: true
+  trackedChains: []
+  aliases:
+    - zoo
+    - hanzo
+    - spc
+    - pars
+
+# EVM chain configs for C + deployed subnet chains (by blockchain ID)
+chainConfigs:
+  enabled: true
+  blockchainIDs:
+    - "9caEYTT7d1g57qfh78WfmrnCc8TYVUfWKLPrrrgZnPv11NisX"   # Zoo
+    - "5jTMMEPbJG2xuQzYgUhRsQE9gRm8jvayHsvzQ8xH35HAv6UHC"   # Hanzo
+    - "2PydmLj14vqDhaZgtdb8nVBYc2Z3TUkmqmAwmasiatjEcdhzSk"   # SPC
+    - "2m3UV9zVPKMZJYQyrQWhr49eiQbkhxULVmsTpYTmb11hC1MmQA"  # Pars

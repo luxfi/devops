@@ -21,16 +21,29 @@ bootstrap:
     minHeight: 1
     timeout: 7200
 
-# Mainnet tracks specific subnet chains only
+# Mainnet requires sybil protection
+consensus:
+  sybilProtectionEnabled: true
+
+# Mainnet tracks specific subnet chains (by subnet/network ID)
 chainTracking:
   trackAllChains: false
   trackedChains:
-    - "2fxVbTJfynNyMym6n7Eu2FM4VHYvuRM3PX5P4ZrGFPjak1LTPT"  # Zoo
-    - "2CydmYkERH2TnHLJqVctYvBf3ZSzR3uajUrc4nFrNs8R1Z4Zin"  # SPC
-    - "whQu11qn7Dt6sqZB4qbdzEuX7SfAuP5wYwrdvEvTcUrQAn3S1"   # Hanzo
-    - "29JSsswqnXVQ4AvvCQQEi8eyykByPd3y468EFzxxAsezzQyer8"   # Pars
+    - "2wNdzpKN9uJCh6KpFarJGp6HRzaZrE6kXMpH1tbRjMUX2FGGHr"  # Zoo subnet
+    - "t17pSqHjHCZ71nY2GcPS2wxPRb9jzCPfS5QgXbcFqTN7KMRUA"   # Hanzo subnet
+    - "2L3WfRcZvmeuvHGWrt5aAEBUo7CU2vyVwpKe9MXw83f4RYrDtM"  # SPC subnet
+    - "2VWExuCUbrDNFBzKpwn7ZHQA4Gsxd9oyMLveXaGX4DitwqyFzp"  # Pars subnet
   aliases:
     - zoo
     - hanzo
     - spc
     - pars
+
+# EVM chain configs for C + deployed subnet chains (by blockchain ID)
+chainConfigs:
+  enabled: true
+  blockchainIDs:
+    - "2Tqy3E7d8SbZ4qBEoQZpPXWK1bmVQBV1ym1WMqVDS5xvdCrEtN"  # Zoo
+    - "Hr75eMC1tKSzRtmPdiU3g1PdWTqr7GDNLmiyViqpkXpTCfxvW"   # Hanzo
+    - "2K91se25pg1cnaBCFndt73CYUSZoHXKpgfSLW8hmyXhLGJPD8D"  # SPC
+    - "2kuaoiiaHRq8ThboCiVCrfQ4TzYh9nmqc9uxVuKkXdKrTahWqf"  # Pars

@@ -21,6 +21,10 @@ bootstrap:
     minHeight: 200
     timeout: 1800
 
+# Testnet requires sybil protection
+consensus:
+  sybilProtectionEnabled: true
+
 # Testnet tracks all chains automatically
 chainTracking:
   trackAllChains: true
@@ -30,7 +34,12 @@ chainTracking:
     - hanzo
     - spc
     - pars
-    - zootest
-    - hanzotest
-    - spctest
-    - parstest
+
+# EVM chain configs for C + deployed subnet chains (by blockchain ID)
+chainConfigs:
+  enabled: true
+  blockchainIDs:
+    - "2hb4fLKzS3PAiBppUewz6DnJgrTbVwqMmnh9X4Jmszeet3XgxS"  # Zoo
+    - "zxkmVAs2kXFx7uLkWtMLNNCDXfL1tbSs9K9MxKTgTR8EEoea6"   # Hanzo
+    - "ntAZkQHMqaNgXaBU3eQWfG2uaVaDCV3g8jXiSeeQCmJXXb3eK"   # SPC
+    - "2mVUFTxEJKNafoofgNnT4cVNpwVoQC2CrypPjDZ24ksGgauHBY"  # Pars
