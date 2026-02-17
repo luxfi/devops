@@ -11,7 +11,7 @@ metadata:
 spec:
   serviceName: luxd-headless
   replicas: {{ .Values.replicas }}
-  podManagementPolicy: OrderedReady
+  podManagementPolicy: Parallel
   updateStrategy:
     type: OnDelete
   selector:
