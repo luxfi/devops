@@ -22,7 +22,7 @@ bootstrap:
     minHeight: 1000000
     timeout: 7200
 
-# Data wipe no longer needed (RLP import complete, 1,082,780 blocks verified)
+# Data preserved (RLP import verified: 1,082,780 blocks, startTime 1766704800)
 initMode:
   clearData: false
 

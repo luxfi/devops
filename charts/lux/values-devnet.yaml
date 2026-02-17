@@ -12,6 +12,10 @@ bootstrap:
     - NodeID-H7KVD16b5b8uzWy9uUdrjzsBLEbbTaUKc
     - NodeID-aVsqjzUqNNTNDxbRwkCUrwnVgEe5x8Qc
 
+# Data preserved (startTime 1766704800)
+initMode:
+  clearData: false
+
 # Devnet consensus - sybil off for development
 consensus:
   sybilProtectionEnabled: false
