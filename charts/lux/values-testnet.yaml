@@ -6,13 +6,12 @@ replicas: 5
 bootstrap:
   useHostnames: true
   nodeIDs:
-    - NodeID-8mCxB5QtMDX1S84zaXF7i8vGcP4FJxACH
-    - NodeID-Pss5uJBPNECYvPZVuas9sE8ZwSpwP43Tr
-    - NodeID-F1snfkawAgudnrp4wZWRK6syZwokPRfb2
-    - NodeID-H7KVD16b5b8uzWy9uUdrjzsBLEbbTaUKc
-    - NodeID-aVsqjzUqNNTNDxbRwkCUrwnVgEe5x8Qc
+    - NodeID-Mf3JfSY91oDwfBqf7rCLmhg4NDtDghw1f
+    - NodeID-2TwSZ2oyeBK2mv7JiseEQ8m74rotDj4QR
+    - NodeID-Ld9VFBQ9zGbd79z2vzaAqkQ3jHuqbtRpo
+    - NodeID-8mY2fhUehN27v3LCU84BnnKEoeRfd2weC
+    - NodeID-4smuFz5Z9cm8BEyQU1oPQ9nwgXyMgaNqu
   # C-Chain RLP import (219 blocks from canonical genesis)
-  # Genesis hash: 0x1c5fe377... (2-alloc canonical, matches Helm chart genesis)
   rlpImport:
     enabled: true
     baseUrl: "https://raw.githubusercontent.com/luxfi/state/main/rlp/lux-testnet"
@@ -22,7 +21,6 @@ bootstrap:
     minHeight: 200
     timeout: 600
 
-# Data preserved (RLP import verified: 218 blocks, startTime 1766704800)
 initMode:
   clearData: false
 
@@ -44,7 +42,7 @@ chainTracking:
 chainConfigs:
   enabled: true
   blockchainIDs:
-    - "2hb4fLKzS3PAiBppUewz6DnJgrTbVwqMmnh9X4Jmszeet3XgxS"  # Zoo
-    - "zxkmVAs2kXFx7uLkWtMLNNCDXfL1tbSs9K9MxKTgTR8EEoea6"   # Hanzo
-    - "ntAZkQHMqaNgXaBU3eQWfG2uaVaDCV3g8jXiSeeQCmJXXb3eK"   # SPC
-    - "2mVUFTxEJKNafoofgNnT4cVNpwVoQC2CrypPjDZ24ksGgauHBY"  # Pars
+    - "2HejgoXvUEDYUYoJLUhQYYadtDSE5qpBLTJKxzYr1AcvkRT9fE"  # Zoo
+    - "2gUYrds3GEira6a1KxzPxSHJx2rY48hLEtpcWXm7JFJ81WiKJg"  # Hanzo (36964)
+    - "eoMnXFewgFM22caQi35FU4i4hyFdLrPFwNVT54yFzc2WPGnNY"   # SPC
+    - "o5eQ7MhcM1K4CqFXRdseNQm9xnyVLKFxsdjHAq8v7UJbXU9rw"  # Pars (494950)

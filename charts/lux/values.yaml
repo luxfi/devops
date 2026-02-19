@@ -11,18 +11,21 @@ networks:
   mainnet:
     networkID: 1
     chainID: 96369
-    httpPort: 9650
-    stakingPort: 9651
+    cChainID: FvnNxsL1LGeNbp5HugkjK9VszFKWVN18b2DSoj1ZRbyBev2hM
+    httpPort: 9630
+    stakingPort: 9631
     namespace: lux-mainnet
   testnet:
     networkID: 2
     chainID: 96368
-    httpPort: 9650
-    stakingPort: 9651
+    cChainID: 2oworJV5yJCV69AcBrizs7Xy4iZHs6Ao9pQP9PR7mNX3qoxaZn
+    httpPort: 9640
+    stakingPort: 9641
     namespace: lux-testnet
   devnet:
     networkID: 3
     chainID: 96370
+    cChainID: FvnNxsL1LGeNbp5HugkjK9VszFKWVN18b2DSoj1ZRbyBev2hM
     httpPort: 9650
     stakingPort: 9651
     namespace: lux-devnet
@@ -88,6 +91,35 @@ chainConfigs:
 initMode:
   # Set to true to clear chain data on pod restart (for re-genesis)
   clearData: false
+
+# Startup gating: wait for peers before starting luxd
+# Prevents "bootstrapped at height 0 with 0 peers" issue
+startupGate:
+  enabled: true
+  minPeers: 2
+  timeoutSeconds: 300
+  checkIntervalSeconds: 5
+
+# Seed/snapshot restore configuration
+seedRestore:
+  enabled: false
+  # sourceType: None | ObjectStore | PVCClone | VolumeSnapshot
+  sourceType: None
+  objectStoreUrl: ""
+  markerPath: "/data/.seeded"
+
+# Upgrade strategy
+upgradeStrategy:
+  # OnDelete (safest) or RollingUpdate
+  type: OnDelete
+  maxUnavailable: 1
+
+# Health policy
+healthPolicy:
+  requireInboundValidators: false
+  minInbound: 1
+  gracePeriodSeconds: 300
+  maxHeightSkew: 10
 
 # Staking keys
 staking:

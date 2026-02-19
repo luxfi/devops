@@ -6,13 +6,12 @@ replicas: 5
 bootstrap:
   useHostnames: true
   nodeIDs:
-    - NodeID-8mCxB5QtMDX1S84zaXF7i8vGcP4FJxACH
-    - NodeID-Pss5uJBPNECYvPZVuas9sE8ZwSpwP43Tr
-    - NodeID-F1snfkawAgudnrp4wZWRK6syZwokPRfb2
-    - NodeID-H7KVD16b5b8uzWy9uUdrjzsBLEbbTaUKc
-    - NodeID-aVsqjzUqNNTNDxbRwkCUrwnVgEe5x8Qc
+    - NodeID-Mf3JfSY91oDwfBqf7rCLmhg4NDtDghw1f
+    - NodeID-2TwSZ2oyeBK2mv7JiseEQ8m74rotDj4QR
+    - NodeID-Ld9VFBQ9zGbd79z2vzaAqkQ3jHuqbtRpo
+    - NodeID-8mY2fhUehN27v3LCU84BnnKEoeRfd2weC
+    - NodeID-4smuFz5Z9cm8BEyQU1oPQ9nwgXyMgaNqu
   # C-Chain RLP import (1,082,780 blocks from canonical genesis)
-  # Genesis hash verified: 0x3f4fa2a0... matches running nodes
   rlpImport:
     enabled: true
     baseUrl: "https://raw.githubusercontent.com/luxfi/state/main/rlp/lux-mainnet"
@@ -22,7 +21,6 @@ bootstrap:
     minHeight: 1000000
     timeout: 7200
 
-# Data preserved (RLP import verified: 1,082,780 blocks, startTime 1766704800)
 initMode:
   clearData: false
 
@@ -30,14 +28,14 @@ initMode:
 consensus:
   sybilProtectionEnabled: true
 
-# Mainnet tracks specific subnet chains (by subnet/network ID)
+# Mainnet tracks specific subnet chains (by subnet ID)
 chainTracking:
   trackAllChains: false
   trackedChains:
-    - "2wNdzpKN9uJCh6KpFarJGp6HRzaZrE6kXMpH1tbRjMUX2FGGHr"  # Zoo subnet
-    - "t17pSqHjHCZ71nY2GcPS2wxPRb9jzCPfS5QgXbcFqTN7KMRUA"   # Hanzo subnet
-    - "2L3WfRcZvmeuvHGWrt5aAEBUo7CU2vyVwpKe9MXw83f4RYrDtM"  # SPC subnet
-    - "2VWExuCUbrDNFBzKpwn7ZHQA4Gsxd9oyMLveXaGX4DitwqyFzp"  # Pars subnet
+    - "Zb8CqjdWK87rrQNfyUXF8vyPTWpkfk6Fi11QAgdVx8Wqn92gN"    # Zoo subnet
+    - "2Sp2D6AkezVy51Md1QN9pgSUrBFJokFftgu4CodoZ4G5vV8AA5"   # Hanzo subnet
+    - "z3vzrV3VzGAzcRJRQD5h9A8SqTAHdUroUFMmCFjmm7E1eCmcm"    # SPC subnet
+    - "qKtBVWY7RAEEWZDVHJTa2stao5tN4d57hkb7758E9H7tMNmec"    # Pars subnet (494949)
   aliases:
     - zoo
     - hanzo
@@ -48,7 +46,7 @@ chainTracking:
 chainConfigs:
   enabled: true
   blockchainIDs:
-    - "2Tqy3E7d8SbZ4qBEoQZpPXWK1bmVQBV1ym1WMqVDS5xvdCrEtN"  # Zoo
-    - "Hr75eMC1tKSzRtmPdiU3g1PdWTqr7GDNLmiyViqpkXpTCfxvW"   # Hanzo
-    - "2K91se25pg1cnaBCFndt73CYUSZoHXKpgfSLW8hmyXhLGJPD8D"  # SPC
-    - "2kuaoiiaHRq8ThboCiVCrfQ4TzYh9nmqc9uxVuKkXdKrTahWqf"  # Pars
+    - "pcMkknsTyA5JdYDzvgRQkq4WmPdz99TcAWeezAQYh7Tjh64HN"  # Zoo
+    - "2ktB8JknYFzLTNWPFk5QHstmmbSx97vAFv5zJUD4BtgU59tZD5"  # Hanzo
+    - "2jomRDDNY9c4eLS47m7gNUMnf6fNYdmCBHSGX6JHTqzP1W1FgE"  # SPC
+    - "2ZPGRSPzvUfr8nSYigsUj1FYC68U6rcKoePhMSkHSYS4V9UmnS"  # Pars (494949)

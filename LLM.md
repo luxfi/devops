@@ -23,7 +23,7 @@ lux-ops/
 └── staking-signer-downloader/   # BLS signer key downloader
 ```
 
-## Production State (2026-02-10)
+## Production State (2026-02-14)
 
 ### Cluster Topology
 
@@ -31,21 +31,33 @@ All three networks run on **one** DigitalOcean K8s cluster:
 
 - **Cluster**: `do-sfo3-hanzo-k8s` (UUID: `1a153000-90a6-48ad-9375-7ef901a9bf7f`)
 - **Namespaces**: `lux-mainnet`, `lux-testnet`, `lux-devnet`
-- **Total pods**: 15 (5 per network), all Running
+- **Total pods**: 15 (5 per network), all Running + Healthy
+- **Auto-scaling**: DO node pool auto-scales (currently 7+ nodes)
 
-| Network | NetworkID | HTTP Port | Staking Port | Namespace | Status |
-|---------|-----------|-----------|--------------|-----------|--------|
-| mainnet | 1 | 9630 | 9631 | lux-mainnet | Running, C-chain ~98% imported |
-| testnet | 2 | 9640 | 9641 | lux-testnet | Running, all chains tracked |
-| devnet | 3 | 9650 | 9651 | lux-devnet | Running, all chains tracked |
+| Network | NetworkID | C-Chain ID | HTTP Port | Staking Port | Namespace | LB IP |
+|---------|-----------|------------|-----------|--------------|-----------|-------|
+| mainnet | 1 | 96369 | 9630 | 9631 | lux-mainnet | 209.38.7.197 |
+| testnet | 2 | 96368 | 9640 | 9641 | lux-testnet | 209.38.5.162 |
+| devnet | 3 | 96370 | 9650 | 9651 | lux-devnet | 209.38.7.201 |
 
 ### Image
 
 ```
-registry.digitalocean.com/hanzo/bootnode:luxd-v1.23.11
+registry.digitalocean.com/hanzo/bootnode:luxd-v1.23.14
 ```
 
 Image pull secret: `registry-hanzo` (DO container registry).
+
+### Key Fix: dialEndpointOnly (v1.23.14)
+
+The `--bootstrap-nodes` flag uses endpoint-only bootstrap where NodeID is `EmptyNodeID` until TLS handshake. The original `ManuallyTrack()` had two bugs:
+1. All endpoints collided on `trackedIPs[EmptyNodeID]` map key
+2. `ipTracker.ManuallyTrack(EmptyNodeID)` was NOT called, so `WantsConnection()` returned false
+
+**Fix**: Added `dialEndpointOnly()` method in `/lux/node/network/network.go` that:
+- Skips the WantsConnection check entirely
+- Doesn't use trackedIPs map (avoiding key collision)
+- Directly dials TCP, upgrades TLS, discovers real NodeID
 
 ### Node IDs (shared across all 3 networks)
 
@@ -63,11 +75,15 @@ NodeID-4smuFz5Z9cm8BEyQU1oPQ9nwgXyMgaNqu  (pod 4)
 
 1. **ConfigMap-based startup scripts** (NOT inline args): The `luxd-startup` ConfigMap contains a full shell script that runs luxd in the background with `&`, waits for health, sets up chain aliases, and imports RLP data.
 
-2. **OnDelete update strategy**: Pathdb trie corruption makes rolling restarts dangerous. Pods must be manually deleted to pick up changes.
+2. **Parallel pod management**: `podManagementPolicy: Parallel` so all 5 validators start together (required for peer discovery).
 
 3. **Per-pod LoadBalancer services**: Each validator gets its own stable external IP for P2P identity.
 
-4. **Internal DNS bootstrap**: Pods bootstrap via K8s DNS (`luxd-{i}.luxd-headless.{ns}.svc.cluster.local`) rather than external IPs.
+4. **Internal DNS bootstrap**: Pods bootstrap via K8s DNS (`luxd-{i}.luxd-headless.{ns}.svc.cluster.local`) using `--bootstrap-nodes` (endpoint-only, NodeID from TLS cert).
+
+5. **LB discovery via K8s API**: Startup script discovers public IP from per-pod LoadBalancer service using K8s API with `curl` (NOT wget, busybox wget lacks --ca-certificate).
+
+6. **Sybil protection**: Enabled for mainnet (networkID=1) and testnet (networkID=2). Disabled for devnet (networkID=3).
 
 ### Templates
 
@@ -78,6 +94,7 @@ NodeID-4smuFz5Z9cm8BEyQU1oPQ9nwgXyMgaNqu  (pod 4)
 | `configmap.yaml` | Genesis JSON from `genesis/{network}.json` |
 | `startup-configmap.yaml` | Startup script (background luxd + health wait + RLP import) |
 | `namespace.yaml` | Namespace creation |
+| `rbac.yaml` | ServiceAccount + Role for LB IP discovery |
 
 ### Values Files
 
@@ -86,6 +103,7 @@ NodeID-4smuFz5Z9cm8BEyQU1oPQ9nwgXyMgaNqu  (pod 4)
 | `values.yaml` | Base defaults (devnet config, 5 replicas, consensus params) |
 | `values-mainnet.yaml` | Mainnet overrides (specific tracked chains, RLP multi-part import) |
 | `values-testnet.yaml` | Testnet overrides (track-all-chains, single-file RLP import) |
+| `values-devnet.yaml` | Devnet overrides (sybil off, track-all-chains) |
 
 ### Key Values
 
@@ -112,201 +130,145 @@ initMode:
   clearData: false  # true = delete chain data on restart (for re-genesis)
 ```
 
-## Startup Script Pattern
-
-The startup script runs luxd in the background to allow post-start bootstrap:
-
-```bash
-# 1. Start luxd in background
-/luxd/build/luxd $ARGS &
-LUXD_PID=$!
-
-# 2. Wait for health (up to 180s)
-while ! curl -sf http://127.0.0.1:$PORT/ext/health; do sleep 1; done
-
-# 3. Set up chain aliases
-curl -X POST ... admin.aliasChain ...
-
-# 4. Download and import RLP data (if needed)
-curl ... admin_importChain ...
-
-# 5. Wait for luxd process
-wait "$LUXD_PID"
-```
-
-**CRITICAL**: Must use `&` NOT `exec`. Using `exec` replaces the shell and prevents post-start logic.
-
 ## Operational Runbook
 
-### Deploy All Networks
+### Deploy a Network
 
 ```bash
-./deploy-all.sh                    # All networks
-./deploy-all.sh mainnet            # Mainnet only
-KUBECONTEXT=my-ctx ./deploy-all.sh # Custom context
-```
-
-### Rolling Upgrade (Zero-Downtime)
-
-```bash
-# 1. Update Helm chart (changes ConfigMap + StatefulSet spec)
-helm upgrade --install luxd-mainnet charts/lux -f charts/lux/values-mainnet.yaml \
-  --namespace lux-mainnet --kube-context do-sfo3-hanzo-k8s
-
-# 2. Delete pods ONE AT A TIME (OnDelete strategy)
-kubectl --context do-sfo3-hanzo-k8s -n lux-mainnet delete pod luxd-0
-# Wait for luxd-0 to be Running + healthy
-kubectl --context do-sfo3-hanzo-k8s -n lux-mainnet wait pod/luxd-0 --for=condition=Ready --timeout=300s
-
-# 3. Repeat for remaining pods
-for i in 1 2 3 4; do
-  kubectl --context do-sfo3-hanzo-k8s -n lux-mainnet delete pod luxd-$i
-  kubectl --context do-sfo3-hanzo-k8s -n lux-mainnet wait pod/luxd-$i --for=condition=Ready --timeout=300s
-done
-```
-
-### Re-import C-Chain (After Trie Corruption)
-
-```bash
-# 1. Set initMode.clearData=true to clear stale data
-helm upgrade --install luxd-mainnet charts/lux -f charts/lux/values-mainnet.yaml \
-  --set initMode.clearData=true --namespace lux-mainnet
-
-# 2. Delete the affected pod
-kubectl -n lux-mainnet delete pod luxd-0
-
-# 3. Monitor import progress
-kubectl -n lux-mainnet logs luxd-0 -f | grep BOOTSTRAP
-
-# 4. Reset clearData back to false after all pods recovered
-helm upgrade --install luxd-mainnet charts/lux -f charts/lux/values-mainnet.yaml \
+# Mainnet (with sybil protection)
+helm upgrade --install luxd-mainnet charts/lux \
+  -f charts/lux/values.yaml -f charts/lux/values-mainnet.yaml \
+  --set consensus.sybilProtectionEnabled=true \
   --namespace lux-mainnet
+
+# Testnet (with sybil protection)
+helm upgrade --install luxd-testnet charts/lux \
+  -f charts/lux/values.yaml -f charts/lux/values-testnet.yaml \
+  --set consensus.sybilProtectionEnabled=true \
+  --namespace lux-testnet
+
+# Devnet (no sybil)
+helm upgrade --install luxd-devnet charts/lux \
+  -f charts/lux/values.yaml -f charts/lux/values-devnet.yaml \
+  --namespace lux-devnet
 ```
 
-### Check Block Heights
+### Build and Push Docker Image
 
 ```bash
-for i in 0 1 2 3 4; do
-  echo -n "luxd-$i: "
-  kubectl -n lux-mainnet exec luxd-$i -- \
-    curl -s -X POST -H 'Content-Type: application/json' \
-    -d '{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":1}' \
-    http://localhost:9630/ext/bc/C/rpc
-  echo
+# IMPORTANT: Must build with --platform linux/amd64 (K8s nodes are amd64, dev machine is arm64)
+cd /Users/z/work/lux/node
+CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o build/luxd-linux-amd64 ./main
+docker build --platform linux/amd64 -t registry.digitalocean.com/hanzo/bootnode:luxd-v1.23.14 -f Dockerfile.bootnode .
+docker push registry.digitalocean.com/hanzo/bootnode:luxd-v1.23.14
+```
+
+### Re-genesis (Clear Chain Data)
+
+```bash
+helm upgrade luxd-testnet charts/lux ... --set initMode.clearData=true
+kubectl delete pods -l app=luxd -n lux-testnet
+# After pods recover:
+helm upgrade luxd-testnet charts/lux ... --set initMode.clearData=false
+```
+
+### Check All Networks Health
+
+```bash
+for ns in lux-mainnet lux-testnet lux-devnet; do
+  port=$(kubectl get svc luxd-headless -n $ns -o jsonpath='{.spec.ports[0].port}')
+  for i in 0 1 2 3 4; do
+    kubectl exec luxd-${i} -n $ns -c luxd -- curl -sf http://127.0.0.1:${port}/ext/health
+  done
 done
 ```
 
-### Check Health
+### Helm Namespace Adoption
 
+When creating namespaces/resources manually before Helm install, they MUST have:
 ```bash
-kubectl -n lux-mainnet exec luxd-0 -- wget -qO- http://localhost:9630/ext/health
+kubectl label namespace lux-$NET app.kubernetes.io/managed-by=Helm
+kubectl annotate namespace lux-$NET meta.helm.sh/release-name=luxd-$NET meta.helm.sh/release-namespace=lux-$NET
 ```
 
-### Add Subnet Chain Tracking
+## Critical Gotchas
 
-1. Edit `values-mainnet.yaml`: add chain ID to `chainTracking.trackedChains`
-2. Add alias to `chainTracking.aliases`
-3. Run `helm upgrade`
-4. Delete pods one at a time (rolling)
+1. **NetworkID vs C-Chain ID**: They are DIFFERENT. NetworkID (1/2/3) goes in genesis.json `networkID` field. C-Chain ID (96369/96368/96370) is the EVM chain ID in the C-Chain genesis config.
 
-### Scale Replicas
+2. **Docker platform**: Always use `--platform linux/amd64` when building on Apple Silicon. K8s nodes are amd64.
 
-```bash
-helm upgrade --install luxd-mainnet charts/lux -f charts/lux/values-mainnet.yaml \
-  --set replicas=7 --namespace lux-mainnet
-```
+3. **busybox wget**: Does NOT support `--ca-certificate`. Use `curl` for K8s API calls in startup scripts.
 
-## Lux-Operator CRDs
+4. **Parallel pod management**: StatefulSet must use `podManagementPolicy: Parallel` for validators to discover each other. This field CANNOT be patched — must delete and recreate the StatefulSet.
 
-### LuxNetwork
+5. **DO LB naming**: Use `k8s-` prefix in annotations to avoid conflicts with existing VM-backed LBs.
 
-```yaml
-apiVersion: lux.network/v1alpha1
-kind: LuxNetwork
-metadata:
-  name: mainnet
-spec:
-  networkId: 1
-  validators: 5
-  image:
-    repository: registry.digitalocean.com/hanzo/bootnode
-    tag: luxd-v1.23.11
-  storage:
-    size: 100Gi
-    storageClass: do-block-storage
-  chainTracking:
-    trackAllChains: false
-    trackedChains: ["chain-id-1", "chain-id-2"]
-    aliases: ["zoo", "hanzo"]
-  rlpImport:
-    enabled: true
-    baseUrl: "https://..."
-    filename: "lux-mainnet-96369.rlp"
-    multiPart: true
-    parts: ["aa", "ab", ...]
-  snapshot:
-    enabled: false
-    url: "https://..."
-```
+6. **Sybil protection**: Required for networkID 1 and 2 (mainnet/testnet). Node refuses to start without it.
 
-### LuxSubnet
+## Operator Architecture (v2 - 2026-02-18)
 
-```yaml
-apiVersion: lux.network/v1alpha1
-kind: LuxSubnet
-metadata:
-  name: zoo
-spec:
-  networkRef: mainnet
-  subnetId: "2fxVbTJfynNyMym6n7Eu2FM4VHYvuRM3PX5P4ZrGFPjak1LTPT"
-  validators:
-    - nodeId: NodeID-Mf3JfSY91oDwfBqf7rCLmhg4NDtDghw1f
-      weight: 100
-  vm:
-    vmType: subnet-evm
-```
+### CRDs
 
-### Controller Phases
+| CRD | Purpose |
+|-----|---------|
+| `LuxNetwork` | Manages a full network (mainnet/testnet/devnet). Creates StatefulSet, Services, RBAC, PDB. |
+| `LuxChain` | Manages individual subnet chain deployments. Links to parent LuxNetwork. |
+
+### Key CRD Features
+
+**HealthPolicy** (per-network):
+- `requireInboundValidators`: Enforce inbound peer connections
+- `minInbound`: Minimum inbound peers before marking Degraded
+- `gracePeriodSeconds`: Grace period after pod start
+- `maxHeightSkew`: Max P-chain height difference before Degraded
+
+**StartupGate** (prevents bootstrap race):
+- InitContainer waits for N peers on staking port before luxd starts
+- Prevents "bootstrapped at height 0 with 0 peers"
+- Configurable `minPeers`, `timeoutSeconds`, `checkIntervalSeconds`
+
+**SeedRestore** (fast bootstrap):
+- Checks `/data/.seeded` marker before restoring
+- Sources: `ObjectStore` (tarball URL), `PVCClone`, `VolumeSnapshot`, `None`
+- `restorePolicy`: `IfNotSeeded` (default) or `Always`
+
+**UpgradeStrategy**:
+- `OnDelete` (safest, default) or `RollingCanary`
+- `maxUnavailable`: Pods restarted at a time during recovery
+- `healthCheckBetweenRestarts`: Wait for health between pod restarts
+
+**Scale Protection**:
+- `allowValidatorRemoval: false` (default) blocks scale-down
+- Must explicitly set `true` to remove validators
+
+### Status Reporting
+
+Per-node status includes: `nodeID`, `externalIP`, `pChainHeight`, `cChainHeight`, `chainsCount`, `connectedPeers`, `inboundPeers`, `outboundPeers`, `bootstrapped`, `healthy`.
+
+Degraded conditions: `BootstrapBlocked`, `HeightSkew`, `InboundPeersTooLow`, `ChainUnhealthy`, `PodNotReady`, `NodeUnhealthy`.
+
+Network metrics: `minPHeight`, `maxPHeight`, `heightSkew`, `bootstrappedChains`, `totalPeers`.
+
+### Reconciliation Flow
 
 ```
-Pending → Creating → Bootstrapping → Running → (Degraded → Recovery)
+Pending → Creating → Bootstrapping → Running ⇄ Degraded
+                                         ↑          |
+                                         └──────────┘
+                                      (attempt_recovery)
 ```
 
-- **Creating**: StatefulSet, Services, ConfigMap created; waiting for pods
-- **Bootstrapping**: Pods running, checking `/ext/health` for bootstrap completion
-- **Running**: All nodes healthy, periodic health checks every 60s
-- **Degraded**: < 2/3 quorum healthy, triggers pod recovery (delete + recreate)
+- **Creating**: StatefulSet pods starting
+- **Bootstrapping**: Pods ready, checking node health API
+- **Running**: All nodes healthy + no degraded conditions
+- **Degraded**: < 100% healthy OR height skew OR low inbound peers
 
-## Pathdb Trie Corruption
+### Helm Chart Changes (v2)
 
-Luxd v1.23.x uses pathdb for C-chain state storage. After importing 1M+ blocks, the genesis parent trie layer is pruned away. **ANY restart causes trie corruption** because the node cannot reconstruct state.
-
-**Consequences**:
-- OnDelete update strategy prevents accidental corruption from rolling restarts
-- After pod restart, C-chain data must be deleted and re-imported from RLP
-- Snapshot restore (faster) is the planned improvement
-
-## Key Patterns
-
-- `exec` in startup replaces the shell → use `&` + `wait` for post-start logic
-- Pathdb makes C-chain data non-portable across restarts → plan for re-import
-- Per-pod LoadBalancers are expensive but necessary for P2P identity
-- Node IDs derived from staking certificates → must be consistent across genesis, secrets, values
-- TCP socket probes (not HTTP) for liveness/readiness (more reliable during import)
-
-## Build
-
-```bash
-cargo check -p lux-operator   # Type-check operator
-cargo build --release          # Build all crates
-```
-
-## Multi-Tenant Fleet Management
-
-For managing multiple tenant networks (bootnode, lux, etc):
-
-1. **Namespace isolation**: Each tenant gets `lux-{tenant}-{network}` namespace
-2. **Shared cluster**: All tenants on `do-sfo3-hanzo-k8s`
-3. **Per-tenant values**: Override `bootstrap.nodeIDs`, `staking.secretName`, `genesis.configMapName`
-4. **Bootnode UI**: `cloud.lux.network` provides web dashboard for fleet management
-5. **API**: `api.cloud.lux.network` (FastAPI) manages clusters via K8s API
+- **startup-gate initContainer**: Waits for peers before luxd
+- **HTTP health probes**: Replaced TCP probes with `/ext/health` HTTP checks
+- **startupProbe**: Added startup probe (TCP) with 5min budget for slow bootstrap
+- **PVC retention**: `whenDeleted: Retain`, `whenScaled: Retain`
+- **serviceAccountName**: `luxd` (for RBAC LB IP discovery)
+- **seedRestore**: Optional snapshot restore in init container
+- **upgradeStrategy**: Configurable (OnDelete default)

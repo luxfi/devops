@@ -22,7 +22,7 @@ use std::collections::BTreeMap;
 )]
 #[serde(rename_all = "camelCase")]
 pub struct LuxNetworkSpec {
-    /// Network ID (1=mainnet, 5=testnet, custom)
+    /// Network ID (1=mainnet, 2=testnet, 3=devnet, custom)
     pub network_id: u32,
 
     /// Number of validator nodes
@@ -48,6 +48,10 @@ pub struct LuxNetworkSpec {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub genesis: Option<serde_json::Value>,
 
+    /// Genesis ConfigMap name (for pre-existing genesis)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub genesis_config_map: Option<String>,
+
     /// Lux MPC configuration for key management
     #[serde(skip_serializing_if = "Option::is_none")]
     pub mpc: Option<MpcSpec>,
@@ -71,6 +75,550 @@ pub struct LuxNetworkSpec {
     /// RLP import configuration for C-chain bootstrap
     #[serde(skip_serializing_if = "Option::is_none")]
     pub rlp_import: Option<RlpImportSpec>,
+
+    /// Port configuration
+    #[serde(default)]
+    pub ports: PortSpec,
+
+    /// Staking key configuration
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub staking: Option<StakingSpec>,
+
+    /// Init container configuration for plugins/setup
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub init: Option<InitSpec>,
+
+    /// Startup script ConfigMap name (custom entrypoint, overrides generated script)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub startup_script: Option<String>,
+
+    /// Security context configuration
+    #[serde(default)]
+    pub security: SecuritySpec,
+
+    /// Adopt existing resources (don't recreate StatefulSet, etc.)
+    #[serde(default)]
+    pub adopt_existing: bool,
+
+    /// Chain references (blockchain IDs for EVM config + chain tracking)
+    #[serde(default)]
+    pub chains: Vec<ChainRef>,
+
+    /// Consensus configuration
+    #[serde(default)]
+    pub consensus: ConsensusSpec,
+
+    /// Database type (zapdb, pebbledb, memdb)
+    #[serde(default = "default_db_type")]
+    pub db_type: String,
+
+    /// Upgrade config JSON (base64-encoded at runtime for --upgrade-file-content)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub upgrade_config: Option<serde_json::Value>,
+
+    /// EVM chain config applied to C-chain and other chains
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub evm_config: Option<serde_json::Value>,
+
+    /// Gateway integration configuration
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub gateway: Option<GatewaySpec>,
+
+    /// Bootstrap configuration
+    #[serde(default)]
+    pub bootstrap: BootstrapSpec,
+
+    /// API configuration
+    #[serde(default)]
+    pub api: ApiSpec,
+
+    /// Network compression type (zstd, none)
+    #[serde(default = "default_compression")]
+    pub network_compression_type: String,
+
+    /// Chain aliases (blockchain_id -> [alias1, alias2, ...]), emitted as --chain-aliases-file-content
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub chain_aliases: Option<BTreeMap<String, Vec<String>>>,
+
+    /// Path to RLP file for built-in C-chain import via --import-chain-data
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub import_chain_data: Option<String>,
+
+    /// Health policy for degraded detection
+    #[serde(default)]
+    pub health_policy: HealthPolicy,
+
+    /// Upgrade strategy for pod rollouts
+    #[serde(default)]
+    pub upgrade_strategy: UpgradeStrategy,
+
+    /// Seed/snapshot restore configuration for fast bootstrap
+    #[serde(default)]
+    pub seed_restore: SeedRestoreSpec,
+
+    /// Startup gating: wait for peers before starting luxd
+    #[serde(default)]
+    pub startup_gate: StartupGateSpec,
+
+    /// Allow removing validator pods when scaling down (must be explicit)
+    #[serde(default)]
+    pub allow_validator_removal: bool,
+}
+
+fn default_db_type() -> String {
+    "zapdb".to_string()
+}
+
+fn default_compression() -> String {
+    "zstd".to_string()
+}
+
+/// Health policy for detecting degraded states
+#[derive(Deserialize, Serialize, Clone, Debug, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct HealthPolicy {
+    /// Require inbound validator connections (false = allow outbound-only in small clusters)
+    #[serde(default)]
+    pub require_inbound_validators: bool,
+
+    /// Minimum inbound peer connections before marking degraded
+    #[serde(default = "default_min_inbound")]
+    pub min_inbound: u32,
+
+    /// Grace period (seconds) after pod start before enforcing peer requirements
+    #[serde(default = "default_health_grace")]
+    pub grace_period_seconds: u64,
+
+    /// Maximum allowed P-chain height skew between nodes before marking degraded
+    #[serde(default = "default_max_height_skew")]
+    pub max_height_skew: u64,
+
+    /// Health check interval in seconds
+    #[serde(default = "default_health_interval")]
+    pub check_interval_seconds: u64,
+}
+
+impl Default for HealthPolicy {
+    fn default() -> Self {
+        Self {
+            require_inbound_validators: false,
+            min_inbound: default_min_inbound(),
+            grace_period_seconds: default_health_grace(),
+            max_height_skew: default_max_height_skew(),
+            check_interval_seconds: default_health_interval(),
+        }
+    }
+}
+
+fn default_min_inbound() -> u32 {
+    1
+}
+
+fn default_health_grace() -> u64 {
+    300
+}
+
+fn default_max_height_skew() -> u64 {
+    10
+}
+
+fn default_health_interval() -> u64 {
+    60
+}
+
+/// Upgrade strategy for controlled rollouts
+#[derive(Deserialize, Serialize, Clone, Debug, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct UpgradeStrategy {
+    /// Strategy type: OnDelete (safest) or RollingCanary (automated with health checks)
+    #[serde(default = "default_upgrade_type")]
+    pub strategy_type: String,
+
+    /// Maximum pods unavailable during rolling canary (default 1)
+    #[serde(default = "default_max_unavailable")]
+    pub max_unavailable: u32,
+
+    /// Require network health check between each pod restart (for RollingCanary)
+    #[serde(default = "default_true")]
+    pub health_check_between_restarts: bool,
+
+    /// Seconds to wait after pod becomes ready before proceeding to next (for RollingCanary)
+    #[serde(default = "default_stabilization_seconds")]
+    pub stabilization_seconds: u64,
+}
+
+impl Default for UpgradeStrategy {
+    fn default() -> Self {
+        Self {
+            strategy_type: default_upgrade_type(),
+            max_unavailable: default_max_unavailable(),
+            health_check_between_restarts: true,
+            stabilization_seconds: default_stabilization_seconds(),
+        }
+    }
+}
+
+fn default_upgrade_type() -> String {
+    "OnDelete".to_string()
+}
+
+fn default_max_unavailable() -> u32 {
+    1
+}
+
+fn default_stabilization_seconds() -> u64 {
+    60
+}
+
+/// Seed/snapshot restore configuration
+#[derive(Deserialize, Serialize, Clone, Debug, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct SeedRestoreSpec {
+    /// Enable seed restore on pod init
+    #[serde(default)]
+    pub enabled: bool,
+
+    /// Seed source type: VolumeSnapshot, PVCClone, ObjectStore, None
+    #[serde(default = "default_seed_source")]
+    pub source_type: String,
+
+    /// Object store URL for tarball download (when source_type=ObjectStore)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub object_store_url: Option<String>,
+
+    /// VolumeSnapshot name to clone from (when source_type=VolumeSnapshot)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub volume_snapshot_name: Option<String>,
+
+    /// Donor PVC name to clone from (when source_type=PVCClone)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub donor_pvc_name: Option<String>,
+
+    /// Restore policy: IfNotSeeded (default) or Always
+    #[serde(default = "default_restore_policy")]
+    pub restore_policy: String,
+
+    /// Marker file path to track seed completion
+    #[serde(default = "default_marker_path")]
+    pub marker_path: String,
+}
+
+impl Default for SeedRestoreSpec {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            source_type: default_seed_source(),
+            object_store_url: None,
+            volume_snapshot_name: None,
+            donor_pvc_name: None,
+            restore_policy: default_restore_policy(),
+            marker_path: default_marker_path(),
+        }
+    }
+}
+
+fn default_seed_source() -> String {
+    "None".to_string()
+}
+
+fn default_restore_policy() -> String {
+    "IfNotSeeded".to_string()
+}
+
+fn default_marker_path() -> String {
+    "/data/.seeded".to_string()
+}
+
+/// Startup gating configuration: wait for peers before starting luxd
+#[derive(Deserialize, Serialize, Clone, Debug, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct StartupGateSpec {
+    /// Enable startup gating (wait for peers)
+    #[serde(default = "default_true")]
+    pub enabled: bool,
+
+    /// Minimum peers that must be TCP-reachable before starting
+    #[serde(default = "default_min_peers")]
+    pub min_peers: u32,
+
+    /// Wait for at least one peer to report healthy via /ext/health (slower but safer)
+    #[serde(default)]
+    pub wait_for_healthy_peer: bool,
+
+    /// Maximum seconds to wait for peers before timeout action
+    #[serde(default = "default_gate_timeout")]
+    pub timeout_seconds: u64,
+
+    /// Seconds between peer check attempts
+    #[serde(default = "default_gate_interval")]
+    pub check_interval_seconds: u64,
+
+    /// Action on timeout: "Fail" (exit 1, pod restarts) or "StartAnyway" (proceed without peers).
+    /// Default is Fail — prevents bootstrap-at-height-0 race condition.
+    #[serde(default = "default_on_timeout")]
+    pub on_timeout: String,
+}
+
+impl Default for StartupGateSpec {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            min_peers: default_min_peers(),
+            wait_for_healthy_peer: false,
+            timeout_seconds: default_gate_timeout(),
+            check_interval_seconds: default_gate_interval(),
+            on_timeout: default_on_timeout(),
+        }
+    }
+}
+
+fn default_on_timeout() -> String {
+    "Fail".to_string()
+}
+
+fn default_min_peers() -> u32 {
+    2
+}
+
+fn default_gate_timeout() -> u64 {
+    300
+}
+
+fn default_gate_interval() -> u64 {
+    5
+}
+
+/// Reference to a deployed chain
+#[derive(Deserialize, Serialize, Clone, Debug, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct ChainRef {
+    /// Blockchain ID (base58-encoded, from createBlockchain TX)
+    pub blockchain_id: String,
+    /// Human-readable alias (e.g., "zoo", "hanzo", "spc", "pars")
+    pub alias: String,
+    /// Chain tracking ID (for --track-chains; on mainnet this differs from blockchain ID)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tracking_id: Option<String>,
+}
+
+/// Consensus configuration
+#[derive(Deserialize, Serialize, Clone, Debug, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct ConsensusSpec {
+    /// Snow sample size
+    #[serde(default = "default_sample_size")]
+    pub sample_size: u32,
+
+    /// Snow quorum size
+    #[serde(default = "default_quorum_size")]
+    pub quorum_size: u32,
+
+    /// Enable sybil protection (required for networkID 1 and 2)
+    #[serde(default)]
+    pub sybil_protection_enabled: bool,
+
+    /// Require validators to connect
+    #[serde(default)]
+    pub require_validator_to_connect: bool,
+
+    /// Allow private IPs for P2P
+    #[serde(default = "default_true")]
+    pub allow_private_ips: bool,
+}
+
+impl Default for ConsensusSpec {
+    fn default() -> Self {
+        Self {
+            sample_size: default_sample_size(),
+            quorum_size: default_quorum_size(),
+            sybil_protection_enabled: false,
+            require_validator_to_connect: false,
+            allow_private_ips: true,
+        }
+    }
+}
+
+fn default_sample_size() -> u32 {
+    5
+}
+
+fn default_quorum_size() -> u32 {
+    4
+}
+
+/// Bootstrap configuration
+#[derive(Deserialize, Serialize, Clone, Debug, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct BootstrapSpec {
+    /// Use internal K8s DNS hostnames for bootstrap (recommended)
+    #[serde(default = "default_true")]
+    pub use_hostnames: bool,
+
+    /// Static external IPs for bootstrap (overrides LB discovery)
+    #[serde(default)]
+    pub external_ips: Vec<String>,
+}
+
+impl Default for BootstrapSpec {
+    fn default() -> Self {
+        Self {
+            use_hostnames: true,
+            external_ips: vec![],
+        }
+    }
+}
+
+/// API configuration
+#[derive(Deserialize, Serialize, Clone, Debug, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct ApiSpec {
+    /// Enable admin API
+    #[serde(default = "default_true")]
+    pub admin_enabled: bool,
+
+    /// Enable metrics API
+    #[serde(default = "default_true")]
+    pub metrics_enabled: bool,
+
+    /// Enable index API
+    #[serde(default = "default_true")]
+    pub index_enabled: bool,
+
+    /// Allowed HTTP hosts
+    #[serde(default = "default_http_allowed_hosts")]
+    pub http_allowed_hosts: String,
+}
+
+impl Default for ApiSpec {
+    fn default() -> Self {
+        Self {
+            admin_enabled: true,
+            metrics_enabled: true,
+            index_enabled: true,
+            http_allowed_hosts: default_http_allowed_hosts(),
+        }
+    }
+}
+
+fn default_http_allowed_hosts() -> String {
+    "*".to_string()
+}
+
+/// Gateway integration configuration (for KrakenD or similar)
+#[derive(Deserialize, Serialize, Clone, Debug, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct GatewaySpec {
+    /// ConfigMap name for gateway config output
+    pub config_map: String,
+    /// Auto-generate gateway routes for all chains
+    #[serde(default)]
+    pub auto_routes: bool,
+    /// Host for gateway ingress
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub host: Option<String>,
+}
+
+/// Port configuration
+#[derive(Deserialize, Serialize, Clone, Debug, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct PortSpec {
+    /// HTTP/RPC port
+    #[serde(default = "default_http_port")]
+    pub http: i32,
+
+    /// Staking/P2P port
+    #[serde(default = "default_staking_port")]
+    pub staking: i32,
+}
+
+impl Default for PortSpec {
+    fn default() -> Self {
+        Self {
+            http: default_http_port(),
+            staking: default_staking_port(),
+        }
+    }
+}
+
+fn default_http_port() -> i32 {
+    9650
+}
+
+fn default_staking_port() -> i32 {
+    9651
+}
+
+/// Staking key configuration
+#[derive(Deserialize, Serialize, Clone, Debug, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct StakingSpec {
+    /// Secret name containing staking keys (staker-{idx}.crt, staker-{idx}.key, signer-{idx}.key)
+    pub secret_name: String,
+}
+
+/// Init container configuration
+#[derive(Deserialize, Serialize, Clone, Debug, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct InitSpec {
+    /// Image for init container (must contain plugins)
+    pub image: String,
+
+    /// Image pull policy for init container
+    #[serde(default = "default_init_pull_policy")]
+    pub pull_policy: String,
+
+    /// Plugin binary names to copy from init image
+    #[serde(default)]
+    pub plugins: Vec<PluginSpec>,
+
+    /// Clear chain data on init (for re-genesis)
+    #[serde(default)]
+    pub clear_data: bool,
+}
+
+fn default_init_pull_policy() -> String {
+    "IfNotPresent".to_string()
+}
+
+/// Plugin specification
+#[derive(Deserialize, Serialize, Clone, Debug, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct PluginSpec {
+    /// Source path in init image
+    pub source: String,
+    /// Destination filename in /data/plugins/
+    pub dest: String,
+}
+
+/// Security context configuration
+#[derive(Deserialize, Serialize, Clone, Debug, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct SecuritySpec {
+    /// Run as user ID
+    #[serde(default = "default_uid")]
+    pub run_as_user: i64,
+
+    /// Run as group ID
+    #[serde(default = "default_uid")]
+    pub run_as_group: i64,
+
+    /// FS group
+    #[serde(default = "default_uid")]
+    pub fs_group: i64,
+}
+
+impl Default for SecuritySpec {
+    fn default() -> Self {
+        Self {
+            run_as_user: default_uid(),
+            run_as_group: default_uid(),
+            fs_group: default_uid(),
+        }
+    }
+}
+
+fn default_uid() -> i64 {
+    1000
 }
 
 /// Image configuration
@@ -95,7 +643,7 @@ pub struct ImageSpec {
 }
 
 fn default_image_repo() -> String {
-    "ghcr.io/luxfi/luxd".to_string()
+    "ghcr.io/luxfi/node".to_string()
 }
 
 fn default_image_tag() -> String {
@@ -230,7 +778,7 @@ pub struct ChainTrackingSpec {
     #[serde(default)]
     pub track_all_chains: bool,
 
-    /// Specific chain IDs to track (for mainnet)
+    /// Specific chain IDs to track (for mainnet, use tracking IDs NOT blockchain IDs)
     #[serde(default)]
     pub tracked_chains: Vec<String>,
 
@@ -288,6 +836,10 @@ pub struct RlpImportSpec {
     /// Import timeout in seconds
     #[serde(default = "default_import_timeout")]
     pub timeout: u64,
+
+    /// C-chain blockchain ID (for clearing chain data before import)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub c_chain_id: Option<String>,
 }
 
 fn default_min_height() -> u64 {
@@ -322,6 +874,26 @@ pub struct LuxNetworkStatus {
     #[serde(default)]
     pub bootstrap_endpoints: Vec<String>,
 
+    /// Per-chain health status (aggregated across nodes)
+    #[serde(default)]
+    pub chain_statuses: BTreeMap<String, ChainStatus>,
+
+    /// Per-pod external IPs (discovered from LB services)
+    #[serde(default)]
+    pub external_ips: BTreeMap<String, String>,
+
+    /// Per-node detailed status
+    #[serde(default)]
+    pub node_statuses: BTreeMap<String, NodeStatus>,
+
+    /// Degraded reasons (empty when Running)
+    #[serde(default)]
+    pub degraded_reasons: Vec<DegradedCondition>,
+
+    /// Network-wide metrics
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub network_metrics: Option<NetworkMetrics>,
+
     /// Conditions
     #[serde(default)]
     #[schemars(skip)]
@@ -332,37 +904,163 @@ pub struct LuxNetworkStatus {
     pub observed_generation: Option<i64>,
 }
 
-/// LuxSubnet CRD for subnet deployments
+/// Per-node detailed status
+#[derive(Deserialize, Serialize, Clone, Debug, Default, PartialEq, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct NodeStatus {
+    /// Node ID (from info.getNodeID)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub node_id: Option<String>,
+
+    /// External IP (from LB service)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub external_ip: Option<String>,
+
+    /// P-chain height
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub p_chain_height: Option<u64>,
+
+    /// C-chain block height
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub c_chain_height: Option<u64>,
+
+    /// Number of tracked chains responding
+    #[serde(default)]
+    pub chains_count: u32,
+
+    /// Connected peers count
+    #[serde(default)]
+    pub connected_peers: u32,
+
+    /// Inbound peer count
+    #[serde(default)]
+    pub inbound_peers: u32,
+
+    /// Outbound peer count
+    #[serde(default)]
+    pub outbound_peers: u32,
+
+    /// Whether this node is bootstrapped
+    #[serde(default)]
+    pub bootstrapped: bool,
+
+    /// Whether this node is healthy
+    #[serde(default)]
+    pub healthy: bool,
+
+    /// Pod start time (for grace period calculation)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub start_time: Option<String>,
+}
+
+/// Degraded condition with reason and detail
+#[derive(Deserialize, Serialize, Clone, Debug, PartialEq, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct DegradedCondition {
+    /// Condition type
+    pub reason: DegradedReason,
+    /// Human-readable message
+    pub message: String,
+    /// Affected node(s)
+    #[serde(default)]
+    pub affected_nodes: Vec<String>,
+}
+
+/// Degraded reason enum
+#[derive(Deserialize, Serialize, Clone, Debug, PartialEq, JsonSchema)]
+pub enum DegradedReason {
+    /// Waiting for peers to be reachable
+    BootstrapBlocked,
+    /// Node is lagging behind others
+    HeightSkew,
+    /// Insufficient inbound peer connections
+    InboundPeersTooLow,
+    /// One or more chains not responding
+    ChainUnhealthy,
+    /// Pod not ready
+    PodNotReady,
+    /// Node failed health check
+    NodeUnhealthy,
+}
+
+/// Network-wide aggregated metrics
+#[derive(Deserialize, Serialize, Clone, Debug, Default, PartialEq, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct NetworkMetrics {
+    /// Minimum P-chain height across all nodes
+    #[serde(default)]
+    pub min_p_height: u64,
+    /// Maximum P-chain height across all nodes
+    #[serde(default)]
+    pub max_p_height: u64,
+    /// Height skew (max - min)
+    #[serde(default)]
+    pub height_skew: u64,
+    /// Number of bootstrapped chains (on any node)
+    #[serde(default)]
+    pub bootstrapped_chains: u32,
+    /// Total connected peers across all nodes
+    #[serde(default)]
+    pub total_peers: u32,
+}
+
+/// Per-chain health status
+#[derive(Deserialize, Serialize, Clone, Debug, PartialEq, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct ChainStatus {
+    /// Chain alias (e.g., "C", "zoo", "hanzo")
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub alias: Option<String>,
+    /// Whether the chain endpoint is responding
+    #[serde(default)]
+    pub healthy: bool,
+    /// Last known block height
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub block_height: Option<u64>,
+}
+
+/// LuxChain CRD for chain deployments
 #[derive(CustomResource, Deserialize, Serialize, Clone, Debug, JsonSchema)]
 #[kube(
     group = "lux.network",
     version = "v1alpha1",
-    kind = "LuxSubnet",
+    kind = "LuxChain",
     namespaced,
-    status = "LuxSubnetStatus",
-    shortname = "luxsub"
+    status = "LuxChainStatus",
+    shortname = "luxchain",
+    printcolumn = r#"{"name":"Phase","type":"string","jsonPath":".status.phase"}"#,
+    printcolumn = r#"{"name":"ChainID","type":"string","jsonPath":".status.chainId"}"#,
+    printcolumn = r#"{"name":"BlockchainID","type":"string","jsonPath":".status.blockchainId"}"#
 )]
 #[serde(rename_all = "camelCase")]
-pub struct LuxSubnetSpec {
-    /// Reference to parent LuxNetwork
+pub struct LuxChainSpec {
+    /// Reference to parent LuxNetwork name (same namespace)
     pub network_ref: String,
 
-    /// Subnet ID (if joining existing)
+    /// Chain ID (if joining existing chain)
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub subnet_id: Option<String>,
+    pub chain_id: Option<String>,
 
-    /// Validators for this subnet
+    /// Blockchain ID (set after chain is deployed)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub blockchain_id: Option<String>,
+
+    /// Human-readable alias for this chain
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub alias: Option<String>,
+
+    /// Validators for this chain
     #[serde(default)]
-    pub validators: Vec<SubnetValidator>,
+    pub validators: Vec<ChainValidator>,
 
     /// VM configuration
     pub vm: VmSpec,
 }
 
-/// Subnet validator reference
+/// Chain validator reference
 #[derive(Deserialize, Serialize, Clone, Debug, JsonSchema)]
 #[serde(rename_all = "camelCase")]
-pub struct SubnetValidator {
+pub struct ChainValidator {
     /// Node ID
     pub node_id: String,
     /// Stake weight
@@ -378,7 +1076,7 @@ fn default_weight() -> u64 {
 #[derive(Deserialize, Serialize, Clone, Debug, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct VmSpec {
-    /// VM type (subnet-evm, etc.)
+    /// VM type (evm, or custom VM name)
     pub vm_type: String,
 
     /// VM binary URL (for custom VMs)
@@ -394,19 +1092,19 @@ pub struct VmSpec {
     pub chain_config: Option<serde_json::Value>,
 }
 
-/// Status of a LuxSubnet
+/// Status of a LuxChain
 #[derive(Deserialize, Serialize, Clone, Debug, Default, JsonSchema)]
 #[serde(rename_all = "camelCase")]
-pub struct LuxSubnetStatus {
-    /// Subnet ID (assigned after creation)
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub subnet_id: Option<String>,
-
+pub struct LuxChainStatus {
     /// Chain ID (assigned after creation)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub chain_id: Option<String>,
 
-    /// Current phase
+    /// Blockchain ID (assigned after chain deployment)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub blockchain_id: Option<String>,
+
+    /// Current phase: Pending, Deploying, Active, Error
     #[serde(default)]
     pub phase: String,
 

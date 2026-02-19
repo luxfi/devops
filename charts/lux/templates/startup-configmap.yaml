@@ -181,6 +181,20 @@ data:
     ARGS="$ARGS --upgrade-file-content=$UPGRADE_B64"
     {{- end }}
 
+    {{- if .Values.bootstrap.rlpImport.enabled }}
+    # Clear C-chain data on restart to avoid trie corruption
+    # (path database prunes genesis state, causing "triedb parent layer missing" on restart)
+    # P-chain and X-chain data are preserved (subnet deployments, etc.)
+    C_CHAIN_DIR="/data/chainData/network-{{ $network.networkID }}/{{ $network.cChainID }}"
+    IMPORT_MARKER="/data/.bootstrap-{{ .Values.network }}-import.done"
+    if [ -d "$C_CHAIN_DIR" ]; then
+      echo "[STARTUP] Clearing C-chain data to prevent trie corruption on restart..."
+      rm -rf "$C_CHAIN_DIR"
+      rm -f "$IMPORT_MARKER"
+      echo "[STARTUP] C-chain data cleared, will re-import RLP"
+    fi
+    {{- end }}
+
     # Start luxd in background (allows post-start bootstrap logic)
     /luxd/build/luxd $ARGS &
     LUXD_PID=$!

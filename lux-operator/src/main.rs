@@ -2,7 +2,7 @@
 //!
 //! This operator manages Lux Network deployments on Kubernetes, including:
 //! - LuxNetwork custom resources
-//! - LuxSubnet custom resources
+//! - LuxChain custom resources
 //! - Validator node lifecycle
 //! - Integration with Lux MPC for key management
 
@@ -67,14 +67,38 @@ async fn main() -> anyhow::Result<()> {
 
     info!("Starting Lux Network Operator");
     info!("Log level: {}", args.log_level);
-    info!("Namespace: {}", if args.namespace.is_empty() { "all" } else { &args.namespace });
+    info!(
+        "Namespace: {}",
+        if args.namespace.is_empty() {
+            "all"
+        } else {
+            &args.namespace
+        }
+    );
 
     // Initialize Kubernetes client
     let client = Client::try_default().await?;
     info!("Connected to Kubernetes cluster");
 
-    // Start the controller
-    controller::run(client, args.namespace, args.mpc_endpoint).await?;
+    // Run both controllers concurrently
+    let network_client = client.clone();
+    let chain_client = client.clone();
+    let network_ns = args.namespace.clone();
+    let chain_ns = args.namespace.clone();
+    let mpc_endpoint = args.mpc_endpoint.clone();
+
+    tokio::select! {
+        res = controller::run_network_controller(network_client, network_ns, mpc_endpoint) => {
+            if let Err(e) = res {
+                tracing::error!("Network controller exited with error: {:?}", e);
+            }
+        }
+        res = controller::run_chain_controller(chain_client, chain_ns) => {
+            if let Err(e) = res {
+                tracing::error!("Chain controller exited with error: {:?}", e);
+            }
+        }
+    }
 
     Ok(())
 }
