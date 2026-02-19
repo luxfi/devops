@@ -10,8 +10,10 @@ mod controller;
 mod crd;
 mod error;
 
+use axum::{routing::get, Router};
 use clap::Parser;
 use kube::Client;
+use std::net::SocketAddr;
 use tracing::{info, Level};
 use tracing_subscriber::FmtSubscriber;
 
@@ -42,6 +44,19 @@ struct Args {
     /// Lux MPC endpoint (optional)
     #[arg(long)]
     mpc_endpoint: Option<String>,
+}
+
+async fn healthz() -> &'static str {
+    "ok"
+}
+
+async fn readyz() -> &'static str {
+    "ok"
+}
+
+async fn metrics() -> &'static str {
+    // TODO: expose prometheus metrics
+    ""
 }
 
 #[tokio::main]
@@ -80,7 +95,19 @@ async fn main() -> anyhow::Result<()> {
     let client = Client::try_default().await?;
     info!("Connected to Kubernetes cluster");
 
-    // Run both controllers concurrently
+    // Health server
+    let health_addr = SocketAddr::from(([0, 0, 0, 0], args.health_port));
+    let health_app = Router::new()
+        .route("/healthz", get(healthz))
+        .route("/readyz", get(readyz));
+    info!("Health server listening on {}", health_addr);
+
+    // Metrics server
+    let metrics_addr = SocketAddr::from(([0, 0, 0, 0], args.metrics_port));
+    let metrics_app = Router::new().route("/metrics", get(metrics));
+    info!("Metrics server listening on {}", metrics_addr);
+
+    // Run controllers + servers concurrently
     let network_client = client.clone();
     let chain_client = client.clone();
     let network_ns = args.namespace.clone();
@@ -96,6 +123,22 @@ async fn main() -> anyhow::Result<()> {
         res = controller::run_chain_controller(chain_client, chain_ns) => {
             if let Err(e) = res {
                 tracing::error!("Chain controller exited with error: {:?}", e);
+            }
+        }
+        res = axum::serve(
+            tokio::net::TcpListener::bind(health_addr).await.unwrap(),
+            health_app.into_make_service(),
+        ) => {
+            if let Err(e) = res {
+                tracing::error!("Health server exited with error: {:?}", e);
+            }
+        }
+        res = axum::serve(
+            tokio::net::TcpListener::bind(metrics_addr).await.unwrap(),
+            metrics_app.into_make_service(),
+        ) => {
+            if let Err(e) = res {
+                tracing::error!("Metrics server exited with error: {:?}", e);
             }
         }
     }

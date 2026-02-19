@@ -1,0 +1,19 @@
+apiVersion: lux.network/v1alpha1
+kind: LuxNetwork
+metadata:
+  name: luxd
+  namespace: lux-mainnet
+spec:
+  networkId: 1
+  validators: 5
+  adoptExisting: true
+
+  ports:
+    http: 9630
+    staking: 9631
+
+  consensus:
+    sybilProtectionEnabled: true
+
+  chainTracking:
+    trackAllChains: false

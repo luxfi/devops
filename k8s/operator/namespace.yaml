@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: lux-system
+  labels:
+    app.kubernetes.io/name: lux-operator
+    app.kubernetes.io/part-of: lux-network

@@ -1,0 +1,51 @@
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: luxnetworks.lux.network
+spec:
+  group: lux.network
+  scope: Namespaced
+  names:
+    plural: luxnetworks
+    singular: luxnetwork
+    kind: LuxNetwork
+    shortNames:
+      - luxnet
+  versions:
+    - name: v1alpha1
+      served: true
+      storage: true
+      subresources:
+        status: {}
+      additionalPrinterColumns:
+        - name: Phase
+          type: string
+          jsonPath: .status.phase
+        - name: Ready
+          type: string
+          jsonPath: .status.readyValidators
+        - name: Total
+          type: string
+          jsonPath: .status.totalValidators
+        - name: Age
+          type: date
+          jsonPath: .metadata.creationTimestamp
+      schema:
+        openAPIV3Schema:
+          type: object
+          description: LuxNetwork is the primary CRD for deploying a Lux network cluster.
+          properties:
+            apiVersion:
+              type: string
+            kind:
+              type: string
+            metadata:
+              type: object
+            spec:
+              type: object
+              x-kubernetes-preserve-unknown-fields: true
+              description: Spec is intentionally schema-light for v1alpha1.
+            status:
+              type: object
+              x-kubernetes-preserve-unknown-fields: true
+              description: Status is intentionally schema-light for v1alpha1.
