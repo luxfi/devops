@@ -31,7 +31,10 @@ pub async fn execute(spec_file: &str, skip_prompt: bool) -> Result<()> {
         println!("About to deploy blizzard load testing infrastructure:");
         println!("  ID: {}", spec.id);
         println!("  Regions: {:?}", spec.aws.regions);
-        println!("  Instances per region: {}", spec.load_test.instances_per_region);
+        println!(
+            "  Instances per region: {}",
+            spec.load_test.instances_per_region
+        );
         println!("  Total instances: {}", spec.total_instances());
         println!("  Target RPC endpoints: {:?}", spec.load_test.rpc_endpoints);
         println!("  Aggregate TPS target: {}", spec.aggregate_tps());
@@ -77,7 +80,9 @@ pub async fn execute(spec_file: &str, skip_prompt: bool) -> Result<()> {
 
 async fn deploy_region(spec: &mut BlizzardSpec, region: &str) -> Result<()> {
     let config = aws_config::defaults(aws_config::BehaviorVersion::latest())
-        .region(aws_sdk_cloudformation::config::Region::new(region.to_string()))
+        .region(aws_sdk_cloudformation::config::Region::new(
+            region.to_string(),
+        ))
         .load()
         .await;
 
@@ -102,7 +107,10 @@ async fn deploy_region(spec: &mut BlizzardSpec, region: &str) -> Result<()> {
     let vpc_template_body = String::from_utf8_lossy(&vpc_template.data).to_string();
 
     let vpc_params = vec![
-        Parameter::builder().parameter_key("Id").parameter_value(&spec.id).build(),
+        Parameter::builder()
+            .parameter_key("Id")
+            .parameter_value(&spec.id)
+            .build(),
         Parameter::builder()
             .parameter_key("SshPortIngressIpv4Range")
             .parameter_value(&spec.aws.ingress_ipv4_cidr)
@@ -134,7 +142,10 @@ async fn deploy_region(spec: &mut BlizzardSpec, region: &str) -> Result<()> {
     let iam_template_body = String::from_utf8_lossy(&iam_template.data).to_string();
 
     let iam_params = vec![
-        Parameter::builder().parameter_key("Id").parameter_value(&spec.id).build(),
+        Parameter::builder()
+            .parameter_key("Id")
+            .parameter_value(&spec.id)
+            .build(),
         Parameter::builder()
             .parameter_key("S3BucketName")
             .parameter_value(&spec.aws.s3_bucket)
@@ -160,7 +171,9 @@ async fn deploy_region(spec: &mut BlizzardSpec, region: &str) -> Result<()> {
 
     // Get or create EC2 key pair
     let ec2_key_name = get_or_create_key_pair(&ec2_client, &spec.id, region).await?;
-    spec.aws.ec2_key_names.insert(region.to_string(), ec2_key_name.clone());
+    spec.aws
+        .ec2_key_names
+        .insert(region.to_string(), ec2_key_name.clone());
 
     // Deploy ASG stack
     let asg_stack_name = format!("{}-asg", spec.id);
@@ -176,7 +189,10 @@ async fn deploy_region(spec: &mut BlizzardSpec, region: &str) -> Result<()> {
     };
 
     let asg_params = vec![
-        Parameter::builder().parameter_key("Id").parameter_value(&spec.id).build(),
+        Parameter::builder()
+            .parameter_key("Id")
+            .parameter_value(&spec.id)
+            .build(),
         Parameter::builder()
             .parameter_key("NodeKind")
             .parameter_value("worker")
@@ -321,7 +337,12 @@ async fn get_or_create_key_pair(
 ) -> Result<String> {
     let key_name = format!("{}-{}", id, region);
 
-    match client.describe_key_pairs().key_names(&key_name).send().await {
+    match client
+        .describe_key_pairs()
+        .key_names(&key_name)
+        .send()
+        .await
+    {
         Ok(resp) if !resp.key_pairs().is_empty() => {
             info!("Using existing key pair: {}", key_name);
             Ok(key_name)
@@ -401,7 +422,9 @@ async fn wait_for_stack(client: &aws_sdk_cloudformation::Client, name: &str) -> 
             .first()
             .ok_or_else(|| anyhow::anyhow!("Stack not found: {}", name))?;
 
-        let status = stack.stack_status().ok_or_else(|| anyhow::anyhow!("No status"))?;
+        let status = stack
+            .stack_status()
+            .ok_or_else(|| anyhow::anyhow!("No status"))?;
 
         match status {
             StackStatus::CreateComplete => {

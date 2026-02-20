@@ -47,7 +47,10 @@ pub async fn execute(
     println!("Configuration:");
     println!("  ID: {}", spec.id);
     println!("  Regions: {:?}", spec.aws.regions);
-    println!("  Instances per region: {}", spec.load_test.instances_per_region);
+    println!(
+        "  Instances per region: {}",
+        spec.load_test.instances_per_region
+    );
     println!("  Total instances: {}", spec.total_instances());
     println!("  TPS per instance: {}", spec.load_test.tps_per_instance);
     println!("  Aggregate TPS target: {}", spec.aggregate_tps());

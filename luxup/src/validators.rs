@@ -35,9 +35,14 @@ pub async fn list(spec_file: &str) -> Result<()> {
     if let Some(nodes) = &spec.created_nodes {
         println!("Known nodes:");
         for node in nodes {
-            println!("  {} - {} ({})",
+            println!(
+                "  {} - {} ({})",
                 node.node_id,
-                if node.is_anchor { "Anchor" } else { "Non-anchor" },
+                if node.is_anchor {
+                    "Anchor"
+                } else {
+                    "Non-anchor"
+                },
                 node.region
             );
         }

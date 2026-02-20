@@ -166,8 +166,13 @@ async fn main() -> anyhow::Result<()> {
         } => {
             init_logging(&log_level)?;
             info!("Deleting deployment: {}", spec_file);
-            delete::execute(&spec_file, skip_prompt, delete_s3_objects, delete_cloudwatch_logs)
-                .await?;
+            delete::execute(
+                &spec_file,
+                skip_prompt,
+                delete_s3_objects,
+                delete_cloudwatch_logs,
+            )
+            .await?;
         }
 
         Commands::Query {

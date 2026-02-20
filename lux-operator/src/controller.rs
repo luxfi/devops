@@ -10,15 +10,15 @@ use k8s_openapi::api::apps::v1::{
     Deployment, DeploymentSpec, StatefulSet, StatefulSetPersistentVolumeClaimRetentionPolicy,
     StatefulSetSpec,
 };
+use k8s_openapi::api::core::v1::{
+    ConfigMap, Container, ContainerPort, EnvVar, LocalObjectReference, PersistentVolumeClaim,
+    PersistentVolumeClaimSpec, Pod, PodSecurityContext, PodSpec, PodTemplateSpec, Probe,
+    ResourceRequirements, SecretVolumeSource, Service, ServicePort, ServiceSpec as K8sServiceSpec,
+    Volume, VolumeMount,
+};
 use k8s_openapi::api::networking::v1::{
     HTTPIngressPath, HTTPIngressRuleValue, Ingress, IngressBackend, IngressRule, IngressSpec,
     IngressTLS, ServiceBackendPort,
-};
-use k8s_openapi::api::core::v1::{
-    ConfigMap, Container, ContainerPort, EnvVar, LocalObjectReference,
-    PersistentVolumeClaim, PersistentVolumeClaimSpec, Pod, PodSecurityContext, PodSpec,
-    PodTemplateSpec, Probe, ResourceRequirements, SecretVolumeSource, Service, ServicePort,
-    ServiceSpec as K8sServiceSpec, Volume, VolumeMount,
 };
 use k8s_openapi::api::policy::v1::{PodDisruptionBudget, PodDisruptionBudgetSpec};
 use k8s_openapi::api::rbac::v1::{PolicyRule, Role, RoleBinding, RoleRef, Subject};
@@ -231,7 +231,10 @@ async fn reconcile_chain(chain: Arc<LuxChain>, ctx: Arc<Context>) -> Result<Acti
                     ..Default::default()
                 }
             } else {
-                info!("Chain {} pending deployment (no blockchain_id set yet)", name);
+                info!(
+                    "Chain {} pending deployment (no blockchain_id set yet)",
+                    name
+                );
                 LuxChainStatus {
                     chain_id: chain.spec.chain_id.clone(),
                     phase: "Pending".to_string(),
@@ -242,7 +245,10 @@ async fn reconcile_chain(chain: Arc<LuxChain>, ctx: Arc<Context>) -> Result<Acti
         "Deploying" => {
             // Check if blockchain_id has been set (manually or by external tool)
             if let Some(blockchain_id) = &chain.spec.blockchain_id {
-                info!("Chain {} deployed with blockchain_id {}", name, blockchain_id);
+                info!(
+                    "Chain {} deployed with blockchain_id {}",
+                    name, blockchain_id
+                );
                 update_parent_network_chains(&chain, &ctx).await?;
                 LuxChainStatus {
                     chain_id: chain.spec.chain_id.clone(),
@@ -324,11 +330,7 @@ async fn update_parent_network_chains(chain: &LuxChain, ctx: &Context) -> Result
             let mut updated_chains: Vec<ChainRef> = network.spec.chains.clone();
             updated_chains.push(ChainRef {
                 blockchain_id: blockchain_id.clone(),
-                alias: chain
-                    .spec
-                    .alias
-                    .clone()
-                    .unwrap_or_else(|| chain.name_any()),
+                alias: chain.spec.alias.clone().unwrap_or_else(|| chain.name_any()),
                 tracking_id: None, // subnet ID auto-resolved in v1.23.13+
             });
 
@@ -405,7 +407,8 @@ async fn reconcile_network(network: Arc<LuxNetwork>, ctx: Arc<Context>) -> Resul
                 let mut s = network.status.clone().unwrap_or_default();
                 s.degraded_reasons.push(crate::crd::DegradedCondition {
                     reason: crate::crd::DegradedReason::NodeUnhealthy,
-                    message: "Scale-down blocked: set allowValidatorRemoval=true to proceed".to_string(),
+                    message: "Scale-down blocked: set allowValidatorRemoval=true to proceed"
+                        .to_string(),
                     affected_nodes: vec![],
                 });
                 s
@@ -414,11 +417,7 @@ async fn reconcile_network(network: Arc<LuxNetwork>, ctx: Arc<Context>) -> Resul
                 let statefulsets: Api<StatefulSet> =
                     Api::namespaced(ctx.client.clone(), &namespace);
                 if let Ok(sts) = statefulsets.get(&name).await {
-                    let current = sts
-                        .spec
-                        .as_ref()
-                        .and_then(|s| s.replicas)
-                        .unwrap_or(0) as u32;
+                    let current = sts.spec.as_ref().and_then(|s| s.replicas).unwrap_or(0) as u32;
                     if current != network.spec.validators {
                         info!(
                             "Network {} scaling: {} -> {} validators",
@@ -566,7 +565,10 @@ async fn adopt_existing(network: &LuxNetwork, ctx: &Context) -> Result<LuxNetwor
                 total_validators: spec.validators,
                 network_id: Some(spec.network_id),
                 bootstrap_endpoints: build_bootstrap_endpoints(
-                    &name, &namespace, spec.validators, http_port,
+                    &name,
+                    &namespace,
+                    spec.validators,
+                    http_port,
                 ),
                 external_ips,
                 ..Default::default()
@@ -726,36 +728,21 @@ async fn create_config_map(network: &LuxNetwork, ctx: &Context) -> Result<()> {
 
     // Build luxd config
     let mut config: BTreeMap<String, serde_json::Value> = BTreeMap::new();
-    config.insert(
-        "network-id".to_string(),
-        serde_json::json!(spec.network_id),
-    );
+    config.insert("network-id".to_string(), serde_json::json!(spec.network_id));
     config.insert("http-host".to_string(), serde_json::json!("0.0.0.0"));
-    config.insert(
-        "http-port".to_string(),
-        serde_json::json!(spec.ports.http),
-    );
+    config.insert("http-port".to_string(), serde_json::json!(spec.ports.http));
     config.insert(
         "staking-port".to_string(),
         serde_json::json!(spec.ports.staking),
     );
     config.insert("log-level".to_string(), serde_json::json!("info"));
-    config.insert(
-        "log-display-level".to_string(),
-        serde_json::json!("info"),
-    );
+    config.insert("log-display-level".to_string(), serde_json::json!("info"));
     config.insert(
         "api-admin-enabled".to_string(),
         serde_json::json!(spec.api.admin_enabled),
     );
-    config.insert(
-        "api-health-enabled".to_string(),
-        serde_json::json!(true),
-    );
-    config.insert(
-        "api-info-enabled".to_string(),
-        serde_json::json!(true),
-    );
+    config.insert("api-health-enabled".to_string(), serde_json::json!(true));
+    config.insert("api-info-enabled".to_string(), serde_json::json!(true));
 
     // Merge user-provided config (overrides defaults)
     for (k, v) in &spec.config {
@@ -825,9 +812,7 @@ async fn create_startup_configmap(network: &LuxNetwork, ctx: &Context) -> Result
 fn generate_startup_script(network: &LuxNetwork) -> String {
     let spec = &network.spec;
     let name = network.name_any();
-    let namespace = network
-        .namespace()
-        .unwrap_or_else(|| "default".to_string());
+    let namespace = network.namespace().unwrap_or_else(|| "default".to_string());
     let http_port = spec.ports.http;
     let staking_port = spec.ports.staking;
     let validators = spec.validators;
@@ -844,20 +829,14 @@ fn generate_startup_script(network: &LuxNetwork) -> String {
     // Bootstrap node list (K8s DNS)
     if spec.bootstrap.use_hostnames {
         s.push_str("# Build bootstrap node list excluding self (K8s DNS)\n");
-        s.push_str(&format!(
-            "DNS_PREFIX=\"{}\"\n",
-            name
-        ));
+        s.push_str(&format!("DNS_PREFIX=\"{}\"\n", name));
         s.push_str(&format!(
             "DNS_SUFFIX=\"{}-headless.{}.svc.cluster.local\"\n",
             name, namespace
         ));
         s.push_str("BOOTSTRAP_NODES=\"\"\n");
         for i in 0..validators {
-            s.push_str(&format!(
-                "if [ \"$POD_INDEX\" != \"{}\" ]; then\n",
-                i
-            ));
+            s.push_str(&format!("if [ \"$POD_INDEX\" != \"{}\" ]; then\n", i));
             s.push_str(&format!(
                 "  CUR_HOST=\"${{DNS_PREFIX}}-{}.${{DNS_SUFFIX}}:{}\"\n",
                 i, staking_port
@@ -877,10 +856,7 @@ fn generate_startup_script(network: &LuxNetwork) -> String {
                 "if [ \"$POD_INDEX\" != \"{}\" ] && [ -n \"{}\" ]; then\n",
                 i, ip
             ));
-            s.push_str(&format!(
-                "  CUR_HOST=\"{}:{}\"\n",
-                ip, staking_port
-            ));
+            s.push_str(&format!("  CUR_HOST=\"{}:{}\"\n", ip, staking_port));
             s.push_str("  if [ -n \"$BOOTSTRAP_NODES\" ]; then\n");
             s.push_str("    BOOTSTRAP_NODES=\"${BOOTSTRAP_NODES},${CUR_HOST}\"\n");
             s.push_str("  else\n");
@@ -906,10 +882,7 @@ fn generate_startup_script(network: &LuxNetwork) -> String {
     s.push_str("  SA_TOKEN_FILE=\"/var/run/secrets/kubernetes.io/serviceaccount/token\"\n");
     s.push_str("  CA_CERT=\"/var/run/secrets/kubernetes.io/serviceaccount/ca.crt\"\n");
     s.push_str("  K8S_API=\"https://kubernetes.default.svc\"\n");
-    s.push_str(&format!(
-        "  SVC_NAME=\"{}-${{POD_INDEX}}\"\n",
-        name
-    ));
+    s.push_str(&format!("  SVC_NAME=\"{}-${{POD_INDEX}}\"\n", name));
     s.push_str(&format!("  NAMESPACE=\"{}\"\n\n", namespace));
     s.push_str("  if [ -f \"$SA_TOKEN_FILE\" ]; then\n");
     s.push_str("    TOKEN=$(cat \"$SA_TOKEN_FILE\")\n");
@@ -964,10 +937,7 @@ fn generate_startup_script(network: &LuxNetwork) -> String {
         for id in &all_chain_ids {
             chains.push(id.to_string());
         }
-        s.push_str(&format!(
-            "for chain in {}; do\n",
-            chains.join(" ")
-        ));
+        s.push_str(&format!("for chain in {}; do\n", chains.join(" ")));
         s.push_str("  mkdir -p /data/configs/chains/$chain\n");
         s.push_str("  echo \"$CHAIN_CFG\" > /data/configs/chains/$chain/config.json\n");
         s.push_str("done\n");
@@ -986,23 +956,14 @@ fn generate_startup_script(network: &LuxNetwork) -> String {
 
     // Build luxd arguments
     s.push_str("# Build luxd arguments\n");
-    s.push_str(&format!(
-        "ARGS=\"--network-id={}\"\n",
-        spec.network_id
-    ));
+    s.push_str(&format!("ARGS=\"--network-id={}\"\n", spec.network_id));
     s.push_str("ARGS=\"$ARGS --http-host=0.0.0.0\"\n");
-    s.push_str(&format!(
-        "ARGS=\"$ARGS --http-port={}\"\n",
-        http_port
-    ));
+    s.push_str(&format!("ARGS=\"$ARGS --http-port={}\"\n", http_port));
     s.push_str(&format!(
         "ARGS=\"$ARGS --http-allowed-hosts={}\"\n",
         spec.api.http_allowed_hosts
     ));
-    s.push_str(&format!(
-        "ARGS=\"$ARGS --staking-port={}\"\n",
-        staking_port
-    ));
+    s.push_str(&format!("ARGS=\"$ARGS --staking-port={}\"\n", staking_port));
     s.push_str("ARGS=\"$ARGS --data-dir=/data\"\n");
 
     // Genesis file
@@ -1010,10 +971,7 @@ fn generate_startup_script(network: &LuxNetwork) -> String {
         s.push_str("ARGS=\"$ARGS --genesis-file=/genesis/genesis.json\"\n");
     }
 
-    s.push_str(&format!(
-        "ARGS=\"$ARGS --db-type={}\"\n",
-        spec.db_type
-    ));
+    s.push_str(&format!("ARGS=\"$ARGS --db-type={}\"\n", spec.db_type));
 
     // Chain config dir
     if spec.evm_config.is_some() || !spec.chains.is_empty() {
@@ -1154,12 +1112,11 @@ fn generate_startup_script(network: &LuxNetwork) -> String {
                     spec.network_id, c_chain_id
                 ));
                 let marker_name = format!("bootstrap-{}-import", name);
-                s.push_str(&format!(
-                    "IMPORT_MARKER=\"/data/.{}.done\"\n",
-                    marker_name
-                ));
+                s.push_str(&format!("IMPORT_MARKER=\"/data/.{}.done\"\n", marker_name));
                 s.push_str("if [ -d \"$C_CHAIN_DIR\" ]; then\n");
-                s.push_str("  echo \"[STARTUP] Clearing C-chain data to prevent trie corruption...\"\n");
+                s.push_str(
+                    "  echo \"[STARTUP] Clearing C-chain data to prevent trie corruption...\"\n",
+                );
                 s.push_str("  rm -rf \"$C_CHAIN_DIR\"\n");
                 s.push_str("  rm -f \"$IMPORT_MARKER\"\n");
                 s.push_str("fi\n\n");
@@ -1209,19 +1166,15 @@ fn generate_startup_script(network: &LuxNetwork) -> String {
             let marker_name = format!("bootstrap-{}-import", name);
             let seed_marker = &spec.seed_restore.marker_path;
             s.push_str("# C-Chain RLP import (skipped if seeded from snapshot)\n");
-            s.push_str(&format!(
-                "MARKER=\"/data/.{}.done\"\n",
-                marker_name
-            ));
-            s.push_str(&format!(
-                "SEED_MARKER=\"{}\"\n",
-                seed_marker
-            ));
+            s.push_str(&format!("MARKER=\"/data/.{}.done\"\n", marker_name));
+            s.push_str(&format!("SEED_MARKER=\"{}\"\n", seed_marker));
             s.push_str("BOOTSTRAP_DIR=\"/data/bootstrap\"\n\n");
 
             // Skip RLP import if node was seeded (snapshot already has chain data)
             s.push_str("if [ -f \"$SEED_MARKER\" ]; then\n");
-            s.push_str("  echo \"[BOOTSTRAP] Node was seeded from snapshot, skipping RLP import\"\n");
+            s.push_str(
+                "  echo \"[BOOTSTRAP] Node was seeded from snapshot, skipping RLP import\"\n",
+            );
             s.push_str("  touch \"$MARKER\"\n");
             s.push_str("el");
 
@@ -1299,7 +1252,9 @@ fn generate_startup_script(network: &LuxNetwork) -> String {
             s.push_str("      echo \"[BOOTSTRAP] RLP file missing or empty, skipping\"\n");
             s.push_str("    fi\n");
             s.push_str("  else\n");
-            s.push_str("    echo \"[BOOTSTRAP] C-Chain already at height $height_dec, skipping import\"\n");
+            s.push_str(
+                "    echo \"[BOOTSTRAP] C-Chain already at height $height_dec, skipping import\"\n",
+            );
             s.push_str("    touch \"$MARKER\"\n");
             s.push_str("  fi\n");
             s.push_str("else\n");
@@ -1440,14 +1395,8 @@ async fn create_per_pod_services(network: &LuxNetwork, ctx: &Context) -> Result<
         labels.insert("pod-index".to_string(), i.to_string());
 
         let mut selector = BTreeMap::new();
-        selector.insert(
-            "app.kubernetes.io/name".to_string(),
-            "luxd".to_string(),
-        );
-        selector.insert(
-            "app.kubernetes.io/instance".to_string(),
-            name.clone(),
-        );
+        selector.insert("app.kubernetes.io/name".to_string(), "luxd".to_string());
+        selector.insert("app.kubernetes.io/instance".to_string(), name.clone());
         selector.insert(
             "statefulset.kubernetes.io/pod-name".to_string(),
             format!("{}-{}", name, i),
@@ -1809,9 +1758,7 @@ fn build_startup_gate_script(network: &LuxNetwork) -> String {
     let spec = &network.spec;
     let gate = &spec.startup_gate;
     let name = network.name_any();
-    let namespace = network
-        .namespace()
-        .unwrap_or_else(|| "default".to_string());
+    let namespace = network.namespace().unwrap_or_else(|| "default".to_string());
     let staking_port = spec.ports.staking;
     let http_port = spec.ports.http;
     let validators = spec.validators;
@@ -1824,10 +1771,7 @@ fn build_startup_gate_script(network: &LuxNetwork) -> String {
         "echo \"[GATE] Startup gate for $HOSTNAME ({}, network-id={})\"\n",
         name, spec.network_id
     ));
-    s.push_str(&format!(
-        "DNS_PREFIX=\"{}\"\n",
-        name
-    ));
+    s.push_str(&format!("DNS_PREFIX=\"{}\"\n", name));
     s.push_str(&format!(
         "DNS_SUFFIX=\"{}-headless.{}.svc.cluster.local\"\n",
         name, namespace
@@ -1836,17 +1780,16 @@ fn build_startup_gate_script(network: &LuxNetwork) -> String {
     s.push_str(&format!("GATE_TIMEOUT={}\n", gate.timeout_seconds));
     s.push_str(&format!("GATE_INTERVAL={}\n", gate.check_interval_seconds));
     s.push_str("GATE_START=$(date +%s)\n");
-    s.push_str("echo \"[GATE] Waiting for $GATE_MIN_PEERS peers (timeout ${GATE_TIMEOUT}s)...\"\n\n");
+    s.push_str(
+        "echo \"[GATE] Waiting for $GATE_MIN_PEERS peers (timeout ${GATE_TIMEOUT}s)...\"\n\n",
+    );
 
     s.push_str("while true; do\n");
     s.push_str("  REACHABLE=0\n");
 
     if spec.bootstrap.use_hostnames {
         for i in 0..validators {
-            s.push_str(&format!(
-                "  if [ \"$POD_INDEX\" != \"{}\" ]; then\n",
-                i
-            ));
+            s.push_str(&format!("  if [ \"$POD_INDEX\" != \"{}\" ]; then\n", i));
             s.push_str(&format!(
                 "    if nc -z -w 2 \"${{DNS_PREFIX}}-{}.${{DNS_SUFFIX}}\" {} 2>/dev/null; then\n",
                 i, staking_port
@@ -1885,10 +1828,7 @@ fn build_startup_gate_script(network: &LuxNetwork) -> String {
         s.push_str("GATE_START=$(date +%s)\n");
         s.push_str("while [ \"$HEALTHY_PEER\" -eq 0 ]; do\n");
         for i in 0..validators {
-            s.push_str(&format!(
-                "  if [ \"$POD_INDEX\" != \"{}\" ]; then\n",
-                i
-            ));
+            s.push_str(&format!("  if [ \"$POD_INDEX\" != \"{}\" ]; then\n", i));
             s.push_str(&format!(
                 "    if curl -sf -m 2 http://${{DNS_PREFIX}}-{}.${{DNS_SUFFIX}}:{}/ext/health >/dev/null 2>&1; then\n",
                 i, http_port
@@ -2031,7 +1971,10 @@ async fn create_statefulset(network: &LuxNetwork, ctx: &Context) -> Result<()> {
         name: "luxd".to_string(),
         image: Some(format!("{}:{}", spec.image.repository, spec.image.tag)),
         image_pull_policy: Some(spec.image.pull_policy.clone()),
-        command: Some(vec!["/bin/sh".to_string(), "/scripts/startup.sh".to_string()]),
+        command: Some(vec![
+            "/bin/sh".to_string(),
+            "/scripts/startup.sh".to_string(),
+        ]),
         ports: Some(vec![
             ContainerPort {
                 name: Some("http".to_string()),
@@ -2126,9 +2069,8 @@ async fn create_statefulset(network: &LuxNetwork, ctx: &Context) -> Result<()> {
     }
 
     if let Some(init) = &spec.init {
-        let mut init_script = String::from(
-            "set -e\nIDX=${HOSTNAME##*-}\necho \"=== Init for ${HOSTNAME} ===\"\n",
-        );
+        let mut init_script =
+            String::from("set -e\nIDX=${HOSTNAME##*-}\necho \"=== Init for ${HOSTNAME} ===\"\n");
 
         // Optional data clearing for re-genesis
         if init.clear_data {
@@ -2164,23 +2106,15 @@ async fn create_statefulset(network: &LuxNetwork, ctx: &Context) -> Result<()> {
                             "  curl -fL --retry 5 --retry-delay 5 -o /tmp/snapshot.tar.zst \"{}\" && \\\n",
                             url
                         ));
-                        init_script.push_str(
-                            "  echo \"[SEED] Extracting snapshot...\" && \\\n",
-                        );
+                        init_script.push_str("  echo \"[SEED] Extracting snapshot...\" && \\\n");
                         // Try zstd first, fall back to gzip
                         init_script.push_str(
                             "  (zstd -d /tmp/snapshot.tar.zst -o /tmp/snapshot.tar 2>/dev/null || cp /tmp/snapshot.tar.zst /tmp/snapshot.tar) && \\\n",
                         );
-                        init_script.push_str(
-                            "  tar xf /tmp/snapshot.tar -C /data && \\\n",
-                        );
-                        init_script.push_str(
-                            "  rm -f /tmp/snapshot.tar /tmp/snapshot.tar.zst && \\\n",
-                        );
-                        init_script.push_str(&format!(
-                            "  touch \"{}\" && \\\n",
-                            marker
-                        ));
+                        init_script.push_str("  tar xf /tmp/snapshot.tar -C /data && \\\n");
+                        init_script
+                            .push_str("  rm -f /tmp/snapshot.tar /tmp/snapshot.tar.zst && \\\n");
+                        init_script.push_str(&format!("  touch \"{}\" && \\\n", marker));
                         init_script.push_str(
                             "  echo \"[SEED] Restore complete\" || echo \"[SEED] Restore failed\"\n",
                         );
@@ -2189,15 +2123,16 @@ async fn create_statefulset(network: &LuxNetwork, ctx: &Context) -> Result<()> {
                 "PVCClone" | "VolumeSnapshot" => {
                     // For PVC clone / VolumeSnapshot, the PVC itself is created from the source.
                     // The init container just needs to mark it as seeded.
-                    init_script.push_str("  # PVC was created from snapshot/clone by the operator\n");
-                    init_script.push_str("  if [ -d \"/data/db\" ] || [ -d \"/data/chainData\" ]; then\n");
-                    init_script.push_str("    echo \"[SEED] Data found from PVC clone/snapshot\"\n");
-                    init_script.push_str(&format!(
-                        "    touch \"{}\"\n",
-                        marker
-                    ));
+                    init_script
+                        .push_str("  # PVC was created from snapshot/clone by the operator\n");
+                    init_script
+                        .push_str("  if [ -d \"/data/db\" ] || [ -d \"/data/chainData\" ]; then\n");
+                    init_script
+                        .push_str("    echo \"[SEED] Data found from PVC clone/snapshot\"\n");
+                    init_script.push_str(&format!("    touch \"{}\"\n", marker));
                     init_script.push_str("  else\n");
-                    init_script.push_str("    echo \"[SEED] WARNING: PVC clone/snapshot has no data\"\n");
+                    init_script
+                        .push_str("    echo \"[SEED] WARNING: PVC clone/snapshot has no data\"\n");
                     init_script.push_str("  fi\n");
                 }
                 _ => {
@@ -2241,17 +2176,10 @@ async fn create_statefulset(network: &LuxNetwork, ctx: &Context) -> Result<()> {
         if spec.staking.is_some() {
             init_script.push_str("echo \"=== Setting up staking keys ===\"\n");
             init_script.push_str("mkdir -p /data/staking\n");
-            init_script.push_str(
-                "cp /staking-keys/staker-${IDX}.crt /data/staking/staker.crt\n",
-            );
-            init_script.push_str(
-                "cp /staking-keys/staker-${IDX}.key /data/staking/staker.key\n",
-            );
-            init_script
-                .push_str("if [ -f \"/staking-keys/signer-${IDX}.key\" ]; then\n");
-            init_script.push_str(
-                "  cp /staking-keys/signer-${IDX}.key /data/staking/signer.key\n",
-            );
+            init_script.push_str("cp /staking-keys/staker-${IDX}.crt /data/staking/staker.crt\n");
+            init_script.push_str("cp /staking-keys/staker-${IDX}.key /data/staking/staker.key\n");
+            init_script.push_str("if [ -f \"/staking-keys/signer-${IDX}.key\" ]; then\n");
+            init_script.push_str("  cp /staking-keys/signer-${IDX}.key /data/staking/signer.key\n");
             init_script.push_str("fi\n");
             init_script.push_str(&format!(
                 "chown -R {}:{} /data/staking\n",
@@ -2337,10 +2265,7 @@ async fn create_statefulset(network: &LuxNetwork, ctx: &Context) -> Result<()> {
             labels: Some(labels.clone()),
             annotations: Some({
                 let mut ann = BTreeMap::new();
-                ann.insert(
-                    "lux.network/protect-pvc".to_string(),
-                    "true".to_string(),
-                );
+                ann.insert("lux.network/protect-pvc".to_string(), "true".to_string());
                 ann
             }),
             owner_references: Some(vec![owner_ref]),
@@ -2400,10 +2325,7 @@ async fn create_statefulset(network: &LuxNetwork, ctx: &Context) -> Result<()> {
 // ───────────────────────── Progress / Health Checks ─────────────────────────
 
 /// Check creation progress by querying StatefulSet status
-async fn check_creation_progress(
-    network: &LuxNetwork,
-    ctx: &Context,
-) -> Result<LuxNetworkStatus> {
+async fn check_creation_progress(network: &LuxNetwork, ctx: &Context) -> Result<LuxNetworkStatus> {
     let name = network.name_any();
     let namespace = network.namespace().unwrap_or_else(|| "default".to_string());
     let spec = &network.spec;
@@ -2452,10 +2374,7 @@ async fn check_creation_progress(
 }
 
 /// Check bootstrap progress by querying node health API
-async fn check_bootstrap_progress(
-    network: &LuxNetwork,
-    ctx: &Context,
-) -> Result<LuxNetworkStatus> {
+async fn check_bootstrap_progress(network: &LuxNetwork, ctx: &Context) -> Result<LuxNetworkStatus> {
     let name = network.name_any();
     let namespace = network.namespace().unwrap_or_else(|| "default".to_string());
     let spec = &network.spec;
@@ -2583,20 +2502,15 @@ async fn check_health(network: &LuxNetwork, ctx: &Context) -> Result<LuxNetworkS
             continue;
         }
 
-        let is_healthy = check_node_health(&pod_ip, http_port)
-            .await
-            .unwrap_or(false);
+        let is_healthy = check_node_health(&pod_ip, http_port).await.unwrap_or(false);
         let is_bootstrapped = check_node_bootstrapped(&pod_ip, http_port)
             .await
             .unwrap_or(false);
-        let p_height = get_pchain_height(&pod_ip, http_port)
-            .await
-            .unwrap_or(None);
+        let p_height = get_pchain_height(&pod_ip, http_port).await.unwrap_or(None);
         let c_height = get_evm_block_height(&pod_ip, http_port, "C")
             .await
             .unwrap_or(None);
-        let (node_id, connected, inbound, outbound) =
-            get_node_peer_info(&pod_ip, http_port).await;
+        let (node_id, connected, inbound, outbound) = get_node_peer_info(&pod_ip, http_port).await;
 
         // Count tracked chains responding
         let mut chains_responding = 0u32;
@@ -2636,7 +2550,10 @@ async fn check_health(network: &LuxNetwork, ctx: &Context) -> Result<LuxNetworkS
         };
 
         // Check inbound peer policy
-        if is_healthy && health_policy.require_inbound_validators && inbound < health_policy.min_inbound {
+        if is_healthy
+            && health_policy.require_inbound_validators
+            && inbound < health_policy.min_inbound
+        {
             // Check grace period
             let in_grace = if let Some(ref start) = pod_start_time {
                 if let Ok(start_dt) = chrono::DateTime::parse_from_rfc3339(start) {
@@ -2706,19 +2623,16 @@ async fn check_health(network: &LuxNetwork, ctx: &Context) -> Result<LuxNetworkS
     }
 
     // Build aggregated chain statuses from first healthy node
-    let first_healthy_ip = node_statuses
-        .values()
-        .find(|ns| ns.healthy)
-        .and_then(|_| {
-            pod_list.items.iter().find_map(|pod| {
-                let ip = pod.status.as_ref()?.pod_ip.clone()?;
-                if check_node_health_sync(&ip, http_port) {
-                    Some(ip)
-                } else {
-                    None
-                }
-            })
-        });
+    let first_healthy_ip = node_statuses.values().find(|ns| ns.healthy).and_then(|_| {
+        pod_list.items.iter().find_map(|pod| {
+            let ip = pod.status.as_ref()?.pod_ip.clone()?;
+            if check_node_health_sync(&ip, http_port) {
+                Some(ip)
+            } else {
+                None
+            }
+        })
+    });
 
     // We already have heights from per-node checks, aggregate them
     if !p_heights.is_empty() {
@@ -2773,7 +2687,11 @@ async fn check_health(network: &LuxNetwork, ctx: &Context) -> Result<LuxNetworkS
                 );
                 degraded_reasons.push(DegradedCondition {
                     reason: DegradedReason::ChainUnhealthy,
-                    message: format!("Chain {} ({}) not responding", chain_ref.alias, &chain_ref.blockchain_id[..8.min(chain_ref.blockchain_id.len())]),
+                    message: format!(
+                        "Chain {} ({}) not responding",
+                        chain_ref.alias,
+                        &chain_ref.blockchain_id[..8.min(chain_ref.blockchain_id.len())]
+                    ),
                     affected_nodes: vec![],
                 });
             }
@@ -2909,11 +2827,7 @@ async fn attempt_recovery(network: &LuxNetwork, ctx: &Context) -> Result<LuxNetw
                 .status
                 .as_ref()
                 .and_then(|s| s.start_time.as_ref())
-                .map(|t| {
-                    chrono::Utc::now()
-                        .signed_duration_since(t.0)
-                        .num_seconds()
-                })
+                .map(|t| chrono::Utc::now().signed_duration_since(t.0).num_seconds())
                 .unwrap_or(0);
 
             if pod_age > 120 {
@@ -2963,10 +2877,7 @@ async fn attempt_recovery(network: &LuxNetwork, ctx: &Context) -> Result<LuxNetw
 }
 
 /// Enforce scale-down protection: refuse to reduce validators unless explicitly allowed
-async fn check_scale_safety(
-    network: &LuxNetwork,
-    ctx: &Context,
-) -> Result<bool> {
+async fn check_scale_safety(network: &LuxNetwork, ctx: &Context) -> Result<bool> {
     let name = network.name_any();
     let namespace = network.namespace().unwrap_or_else(|| "default".to_string());
     let spec = &network.spec;
@@ -2978,11 +2889,7 @@ async fn check_scale_safety(
         Err(_) => return Ok(true), // no STS yet, safe to create
     };
 
-    let current_replicas = sts
-        .spec
-        .as_ref()
-        .and_then(|s| s.replicas)
-        .unwrap_or(0) as u32;
+    let current_replicas = sts.spec.as_ref().and_then(|s| s.replicas).unwrap_or(0) as u32;
 
     if spec.validators < current_replicas {
         // Scale down requested
@@ -3163,10 +3070,7 @@ async fn get_pchain_height(pod_ip: &str, http_port: i32) -> Result<Option<u64>> 
 }
 
 /// Get node ID and peer counts via info.getNodeID and info.peers
-async fn get_node_peer_info(
-    pod_ip: &str,
-    http_port: i32,
-) -> (Option<String>, u32, u32, u32) {
+async fn get_node_peer_info(pod_ip: &str, http_port: i32) -> (Option<String>, u32, u32, u32) {
     let client = match reqwest::Client::builder()
         .timeout(Duration::from_secs(5))
         .build()
@@ -3228,10 +3132,7 @@ async fn get_node_peer_info(
                         let mut ib = 0u32;
                         let mut ob = 0u32;
                         for peer in peer_list {
-                            let ptype = peer
-                                .get("type")
-                                .and_then(|t| t.as_str())
-                                .unwrap_or("");
+                            let ptype = peer.get("type").and_then(|t| t.as_str()).unwrap_or("");
                             match ptype {
                                 "inbound" => ib += 1,
                                 "outbound" => ob += 1,
@@ -3260,11 +3161,7 @@ async fn get_node_peer_info(
 }
 
 /// Get EVM chain block height via eth_blockNumber
-async fn get_evm_block_height(
-    pod_ip: &str,
-    http_port: i32,
-    chain: &str,
-) -> Result<Option<u64>> {
+async fn get_evm_block_height(pod_ip: &str, http_port: i32, chain: &str) -> Result<Option<u64>> {
     let url = format!("http://{}:{}/ext/bc/{}/rpc", pod_ip, http_port, chain);
 
     let client = reqwest::Client::builder()
@@ -3286,12 +3183,8 @@ async fn get_evm_block_height(
     match resp {
         Ok(r) if r.status().is_success() => {
             let body: serde_json::Value = r.json().await.unwrap_or_default();
-            let hex_str = body
-                .get("result")
-                .and_then(|r| r.as_str())
-                .unwrap_or("0x0");
-            let height =
-                u64::from_str_radix(hex_str.trim_start_matches("0x"), 16).unwrap_or(0);
+            let hex_str = body.get("result").and_then(|r| r.as_str()).unwrap_or("0x0");
+            let height = u64::from_str_radix(hex_str.trim_start_matches("0x"), 16).unwrap_or(0);
             Ok(Some(height))
         }
         _ => Ok(None),
@@ -3374,17 +3267,24 @@ async fn maybe_take_snapshot(
         &ctx.client,
         &namespace,
         &pod_name,
-        &["sh", "-c", &format!(
+        &[
+            "sh",
+            "-c",
+            &format!(
             "if [ -f {} ]; then cat {}; elif [ -f {} ]; then echo IN_PROGRESS; else echo IDLE; fi",
             done_marker, done_marker, progress_marker
-        )],
+        ),
+        ],
     )
     .await;
 
     if let Ok(ref output) = check_result {
         let output = output.trim();
         if output == "IN_PROGRESS" {
-            debug!("Network {} snapshot still in progress on {}", name, pod_name);
+            debug!(
+                "Network {} snapshot still in progress on {}",
+                name, pod_name
+            );
             return Ok(None);
         }
         if output.starts_with("DONE|") {
@@ -3400,7 +3300,11 @@ async fn maybe_take_snapshot(
                 &ctx.client,
                 &namespace,
                 &pod_name,
-                &["sh", "-c", &format!("rm -f {} {}", progress_marker, done_marker)],
+                &[
+                    "sh",
+                    "-c",
+                    &format!("rm -f {} {}", progress_marker, done_marker),
+                ],
             )
             .await;
 
@@ -3419,12 +3323,19 @@ async fn maybe_take_snapshot(
         }
         if output.starts_with("DONE") {
             // Old format (DONE:...) from previous operator version — clean up stale marker
-            warn!("Network {} found stale DONE marker (old format), cleaning up", name);
+            warn!(
+                "Network {} found stale DONE marker (old format), cleaning up",
+                name
+            );
             let _ = exec_in_pod(
                 &ctx.client,
                 &namespace,
                 &pod_name,
-                &["sh", "-c", &format!("rm -f {} {}", progress_marker, done_marker)],
+                &[
+                    "sh",
+                    "-c",
+                    &format!("rm -f {} {}", progress_marker, done_marker),
+                ],
             )
             .await;
             // Fall through to interval check — will trigger fresh snapshot
@@ -3470,7 +3381,10 @@ async fn maybe_take_snapshot(
     let object_key = format!("{}/{}", prefix, archive_name);
     let endpoint = &schedule.object_store_endpoint;
     let access_key = schedule.access_key.as_deref().unwrap_or("hanzo");
-    let secret_key_ref = schedule.secret_key_ref.as_deref().unwrap_or("hanzo-minio-secret");
+    let secret_key_ref = schedule
+        .secret_key_ref
+        .as_deref()
+        .unwrap_or("hanzo-minio-secret");
     let snapshot_url = format!("{}/{}/{}", endpoint, bucket, object_key);
     let now_rfc3339 = chrono::Utc::now().to_rfc3339();
 
@@ -3530,7 +3444,10 @@ async fn maybe_take_snapshot(
     );
 
     // Launch as background process via nohup — exec returns immediately
-    let launch_cmd = format!("nohup sh -c '{}' >/tmp/snapshot.log 2>&1 &", bg_script.replace('\'', "'\\''"));
+    let launch_cmd = format!(
+        "nohup sh -c '{}' >/tmp/snapshot.log 2>&1 &",
+        bg_script.replace('\'', "'\\''")
+    );
     let launch_result = exec_in_pod(
         &ctx.client,
         &namespace,
@@ -3541,7 +3458,10 @@ async fn maybe_take_snapshot(
 
     match launch_result {
         Ok(_) => {
-            info!("Network {} snapshot background job launched on {}", name, pod_name);
+            info!(
+                "Network {} snapshot background job launched on {}",
+                name, pod_name
+            );
         }
         Err(ref e) => {
             warn!("Network {} failed to launch snapshot job: {}", name, e);
@@ -3605,9 +3525,7 @@ async fn exec_in_pod(
         .exec(
             pod_name,
             cmd,
-            &kube::api::AttachParams::default()
-                .stdout(true)
-                .stderr(true),
+            &kube::api::AttachParams::default().stdout(true).stderr(true),
         )
         .await
         .map_err(|e| OperatorError::Reconcile(format!("exec failed on {}: {}", pod_name, e)))?;
@@ -3617,11 +3535,8 @@ async fn exec_in_pod(
         let mut buf = Vec::new();
         if let Some(mut reader) = attached.stdout() {
             use tokio::io::AsyncReadExt;
-            let _ = tokio::time::timeout(
-                Duration::from_secs(300),
-                reader.read_to_end(&mut buf),
-            )
-            .await;
+            let _ =
+                tokio::time::timeout(Duration::from_secs(300), reader.read_to_end(&mut buf)).await;
         }
         buf
     };
@@ -3665,10 +3580,7 @@ fn build_bootstrap_endpoints(
 fn resource_labels(name: &str) -> BTreeMap<String, String> {
     let mut labels = BTreeMap::new();
     labels.insert("app.kubernetes.io/name".to_string(), "luxd".to_string());
-    labels.insert(
-        "app.kubernetes.io/instance".to_string(),
-        name.to_string(),
-    );
+    labels.insert("app.kubernetes.io/instance".to_string(), name.to_string());
     labels.insert(
         "app.kubernetes.io/managed-by".to_string(),
         "lux-operator".to_string(),
@@ -3785,8 +3697,7 @@ async fn reconcile_indexer(indexer: Arc<LuxIndexer>, ctx: Arc<Context>) -> Resul
             create_indexer_resources(&ctx.client, &namespace, &name, spec, &indexer).await?;
 
             // Check if Deployment is ready
-            let deploy_api: Api<Deployment> =
-                Api::namespaced(ctx.client.clone(), &namespace);
+            let deploy_api: Api<Deployment> = Api::namespaced(ctx.client.clone(), &namespace);
             let new_phase = match deploy_api.get(&format!("{}-indexer", name)).await {
                 Ok(deploy) => {
                     let ready = deploy
@@ -3794,7 +3705,11 @@ async fn reconcile_indexer(indexer: Arc<LuxIndexer>, ctx: Arc<Context>) -> Resul
                         .as_ref()
                         .and_then(|s| s.ready_replicas)
                         .unwrap_or(0);
-                    if ready > 0 { "Ready" } else { "Syncing" }
+                    if ready > 0 {
+                        "Ready"
+                    } else {
+                        "Syncing"
+                    }
                 }
                 Err(_) => "Creating",
             };
@@ -3988,10 +3903,7 @@ async fn create_indexer_resources(
                                 "x" | "xchain" => "xchain",
                                 _ => "cchain", // C-chain and all EVM subnet chains
                             };
-                            vec![
-                                "-chain".to_string(),
-                                chain_type.to_string(),
-                            ]
+                            vec!["-chain".to_string(), chain_type.to_string()]
                         }),
                         ports: Some(vec![ContainerPort {
                             container_port: spec.port,
@@ -4001,25 +3913,21 @@ async fn create_indexer_resources(
                         env: Some(env_vars),
                         resources: Some(build_resource_requirements(&spec.resources)),
                         liveness_probe: Some(Probe {
-                            http_get: Some(
-                                k8s_openapi::api::core::v1::HTTPGetAction {
-                                    path: Some("/health".to_string()),
-                                    port: IntOrString::Int(spec.port),
-                                    ..Default::default()
-                                },
-                            ),
+                            http_get: Some(k8s_openapi::api::core::v1::HTTPGetAction {
+                                path: Some("/health".to_string()),
+                                port: IntOrString::Int(spec.port),
+                                ..Default::default()
+                            }),
                             initial_delay_seconds: Some(30),
                             period_seconds: Some(30),
                             ..Default::default()
                         }),
                         readiness_probe: Some(Probe {
-                            http_get: Some(
-                                k8s_openapi::api::core::v1::HTTPGetAction {
-                                    path: Some("/health".to_string()),
-                                    port: IntOrString::Int(spec.port),
-                                    ..Default::default()
-                                },
-                            ),
+                            http_get: Some(k8s_openapi::api::core::v1::HTTPGetAction {
+                                path: Some("/health".to_string()),
+                                port: IntOrString::Int(spec.port),
+                                ..Default::default()
+                            }),
                             initial_delay_seconds: Some(10),
                             period_seconds: Some(10),
                             ..Default::default()
@@ -4232,11 +4140,20 @@ async fn create_indexer_postgres(
 
 fn indexer_labels(name: &str, chain_alias: &str) -> BTreeMap<String, String> {
     let mut labels = BTreeMap::new();
-    labels.insert("app.kubernetes.io/name".to_string(), "lux-indexer".to_string());
+    labels.insert(
+        "app.kubernetes.io/name".to_string(),
+        "lux-indexer".to_string(),
+    );
     labels.insert("app.kubernetes.io/instance".to_string(), name.to_string());
-    labels.insert("app.kubernetes.io/component".to_string(), "indexer".to_string());
+    labels.insert(
+        "app.kubernetes.io/component".to_string(),
+        "indexer".to_string(),
+    );
     labels.insert("lux.network/chain".to_string(), chain_alias.to_string());
-    labels.insert("app.kubernetes.io/managed-by".to_string(), "lux-operator".to_string());
+    labels.insert(
+        "app.kubernetes.io/managed-by".to_string(),
+        "lux-operator".to_string(),
+    );
     labels
 }
 
@@ -4270,7 +4187,9 @@ fn indexer_error_policy(
 
 async fn reconcile_explorer(explorer: Arc<LuxExplorer>, ctx: Arc<Context>) -> Result<Action> {
     let name = explorer.name_any();
-    let namespace = explorer.namespace().unwrap_or_else(|| "default".to_string());
+    let namespace = explorer
+        .namespace()
+        .unwrap_or_else(|| "default".to_string());
     let spec = &explorer.spec;
 
     info!("Reconciling LuxExplorer {}/{}", namespace, name);
@@ -4289,8 +4208,7 @@ async fn reconcile_explorer(explorer: Arc<LuxExplorer>, ctx: Arc<Context>) -> Re
             }
         }
         "Creating" | "Ready" => {
-            let deploy_api: Api<Deployment> =
-                Api::namespaced(ctx.client.clone(), &namespace);
+            let deploy_api: Api<Deployment> = Api::namespaced(ctx.client.clone(), &namespace);
             match deploy_api.get(&format!("{}-explorer", name)).await {
                 Ok(deploy) => {
                     let ready = deploy
@@ -4298,10 +4216,7 @@ async fn reconcile_explorer(explorer: Arc<LuxExplorer>, ctx: Arc<Context>) -> Re
                         .as_ref()
                         .and_then(|s| s.ready_replicas)
                         .unwrap_or(0);
-                    let url = spec
-                        .ingress
-                        .as_ref()
-                        .map(|i| format!("https://{}", i.host));
+                    let url = spec.ingress.as_ref().map(|i| format!("https://{}", i.host));
                     LuxExplorerStatus {
                         phase: if ready > 0 { "Ready" } else { "Creating" }.to_string(),
                         url,
@@ -4497,13 +4412,11 @@ async fn create_explorer_resources(
                         env: Some(env_vars),
                         resources: Some(build_resource_requirements(&spec.resources)),
                         liveness_probe: Some(Probe {
-                            http_get: Some(
-                                k8s_openapi::api::core::v1::HTTPGetAction {
-                                    path: Some("/".to_string()),
-                                    port: IntOrString::Int(spec.port),
-                                    ..Default::default()
-                                },
-                            ),
+                            http_get: Some(k8s_openapi::api::core::v1::HTTPGetAction {
+                                path: Some("/".to_string()),
+                                port: IntOrString::Int(spec.port),
+                                ..Default::default()
+                            }),
                             initial_delay_seconds: Some(15),
                             period_seconds: Some(30),
                             ..Default::default()
@@ -4612,10 +4525,19 @@ async fn create_explorer_resources(
 
 fn explorer_labels(name: &str) -> BTreeMap<String, String> {
     let mut labels = BTreeMap::new();
-    labels.insert("app.kubernetes.io/name".to_string(), "lux-explorer".to_string());
+    labels.insert(
+        "app.kubernetes.io/name".to_string(),
+        "lux-explorer".to_string(),
+    );
     labels.insert("app.kubernetes.io/instance".to_string(), name.to_string());
-    labels.insert("app.kubernetes.io/component".to_string(), "explorer".to_string());
-    labels.insert("app.kubernetes.io/managed-by".to_string(), "lux-operator".to_string());
+    labels.insert(
+        "app.kubernetes.io/component".to_string(),
+        "explorer".to_string(),
+    );
+    labels.insert(
+        "app.kubernetes.io/managed-by".to_string(),
+        "lux-operator".to_string(),
+    );
     labels
 }
 
@@ -4663,7 +4585,10 @@ async fn reconcile_gateway(gateway: Arc<LuxGateway>, ctx: Arc<Context>) -> Resul
     let http_port = match networks_api.get(&spec.network_ref).await {
         Ok(network) => network.spec.ports.http,
         Err(_) => {
-            warn!("Gateway {}: LuxNetwork {} not found, using default port 9650", name, spec.network_ref);
+            warn!(
+                "Gateway {}: LuxNetwork {} not found, using default port 9650",
+                name, spec.network_ref
+            );
             9650
         }
     };
@@ -4671,13 +4596,26 @@ async fn reconcile_gateway(gateway: Arc<LuxGateway>, ctx: Arc<Context>) -> Resul
     // Discover subnet blockchain IDs from P-chain (best-effort)
     let subnet_chains = discover_subnet_chains(&namespace, &spec.network_ref, http_port).await;
     if !subnet_chains.is_empty() {
-        info!("Gateway {}: discovered {} subnet chains from P-chain", name, subnet_chains.len());
+        info!(
+            "Gateway {}: discovered {} subnet chains from P-chain",
+            name,
+            subnet_chains.len()
+        );
     }
 
     let new_status = match phase {
         "" | "Pending" => {
             info!("Gateway {}: Creating resources", name);
-            create_gateway_resources(&ctx.client, &namespace, &name, spec, &gateway, http_port, &subnet_chains).await?;
+            create_gateway_resources(
+                &ctx.client,
+                &namespace,
+                &name,
+                spec,
+                &gateway,
+                http_port,
+                &subnet_chains,
+            )
+            .await?;
             LuxGatewayStatus {
                 phase: "Creating".to_string(),
                 ..current_status
@@ -4685,10 +4623,18 @@ async fn reconcile_gateway(gateway: Arc<LuxGateway>, ctx: Arc<Context>) -> Resul
         }
         "Creating" | "Ready" => {
             // Always re-create resources to pick up subnet chain changes
-            create_gateway_resources(&ctx.client, &namespace, &name, spec, &gateway, http_port, &subnet_chains).await?;
+            create_gateway_resources(
+                &ctx.client,
+                &namespace,
+                &name,
+                spec,
+                &gateway,
+                http_port,
+                &subnet_chains,
+            )
+            .await?;
 
-            let deploy_api: Api<Deployment> =
-                Api::namespaced(ctx.client.clone(), &namespace);
+            let deploy_api: Api<Deployment> = Api::namespaced(ctx.client.clone(), &namespace);
             match deploy_api.get(&format!("{}-gateway", name)).await {
                 Ok(deploy) => {
                     let ready = deploy
@@ -4710,10 +4656,8 @@ async fn reconcile_gateway(gateway: Arc<LuxGateway>, ctx: Arc<Context>) -> Resul
                     let mut chain_routes = BTreeMap::new();
                     chain_routes.insert("C-chain".to_string(), "/ext/bc/C/rpc".to_string());
                     for (chain_name, blockchain_id) in &subnet_chains {
-                        chain_routes.insert(
-                            chain_name.clone(),
-                            format!("/ext/bc/{}/rpc", blockchain_id),
-                        );
+                        chain_routes
+                            .insert(chain_name.clone(), format!("/ext/bc/{}/rpc", blockchain_id));
                     }
 
                     LuxGatewayStatus {
@@ -4725,17 +4669,24 @@ async fn reconcile_gateway(gateway: Arc<LuxGateway>, ctx: Arc<Context>) -> Resul
                         ..current_status
                     }
                 }
-                Err(_) => {
-                    LuxGatewayStatus {
-                        phase: "Creating".to_string(),
-                        ..current_status
-                    }
-                }
+                Err(_) => LuxGatewayStatus {
+                    phase: "Creating".to_string(),
+                    ..current_status
+                },
             }
         }
         "Error" => {
             warn!("Gateway {} in Error state, retrying", name);
-            create_gateway_resources(&ctx.client, &namespace, &name, spec, &gateway, http_port, &subnet_chains).await?;
+            create_gateway_resources(
+                &ctx.client,
+                &namespace,
+                &name,
+                spec,
+                &gateway,
+                http_port,
+                &subnet_chains,
+            )
+            .await?;
             LuxGatewayStatus {
                 phase: "Creating".to_string(),
                 ..current_status
@@ -4810,7 +4761,11 @@ async fn discover_subnet_chains(
             }
 
             if let Some(id) = chain["id"].as_str() {
-                let name = if chain_name.is_empty() { "unknown" } else { chain_name };
+                let name = if chain_name.is_empty() {
+                    "unknown"
+                } else {
+                    chain_name
+                };
                 chains.push((name.to_string(), id.to_string()));
             }
         }
@@ -4902,13 +4857,11 @@ async fn create_gateway_resources(
                         }]),
                         resources: Some(build_resource_requirements(&spec.resources)),
                         liveness_probe: Some(Probe {
-                            http_get: Some(
-                                k8s_openapi::api::core::v1::HTTPGetAction {
-                                    path: Some("/__health".to_string()),
-                                    port: IntOrString::Int(spec.port),
-                                    ..Default::default()
-                                },
-                            ),
+                            http_get: Some(k8s_openapi::api::core::v1::HTTPGetAction {
+                                path: Some("/__health".to_string()),
+                                port: IntOrString::Int(spec.port),
+                                ..Default::default()
+                            }),
                             initial_delay_seconds: Some(10),
                             period_seconds: Some(15),
                             ..Default::default()
@@ -4971,10 +4924,7 @@ async fn create_gateway_resources(
         );
         if tls.cert_manager {
             if let Some(issuer) = &tls.issuer {
-                annotations.insert(
-                    "cert-manager.io/cluster-issuer".to_string(),
-                    issuer.clone(),
-                );
+                annotations.insert("cert-manager.io/cluster-issuer".to_string(), issuer.clone());
             }
         }
 
@@ -5042,7 +4992,11 @@ fn build_krakend_config(
             spec.network_ref, namespace, http_port
         );
 
-        let max_rate = spec.rate_limit.as_ref().map(|r| r.requests_per_second).unwrap_or(100);
+        let max_rate = spec
+            .rate_limit
+            .as_ref()
+            .map(|r| r.requests_per_second)
+            .unwrap_or(100);
         let burst = spec.rate_limit.as_ref().map(|r| r.burst).unwrap_or(200);
 
         // C-chain RPC (rate-limited)
@@ -5152,15 +5106,15 @@ fn build_krakend_config(
                 }]
             }));
 
-            info!("  Added routes for subnet chain '{}': /ext/bc/{}/rpc", chain_name, blockchain_id);
+            info!(
+                "  Added routes for subnet chain '{}': /ext/bc/{}/rpc",
+                chain_name, blockchain_id
+            );
         }
 
         // Indexer API routes
         for indexer_ref in &spec.indexer_refs {
-            let indexer_backend = format!(
-                "http://{}-indexer.{}.svc:4000",
-                indexer_ref, namespace
-            );
+            let indexer_backend = format!("http://{}-indexer.{}.svc:4000", indexer_ref, namespace);
             endpoints.push(serde_json::json!({
                 "endpoint": format!("/api/indexer/{}", indexer_ref),
                 "output_encoding": "no-op",
@@ -5212,10 +5166,19 @@ fn build_krakend_config(
 
 fn gateway_labels(name: &str) -> BTreeMap<String, String> {
     let mut labels = BTreeMap::new();
-    labels.insert("app.kubernetes.io/name".to_string(), "lux-gateway".to_string());
+    labels.insert(
+        "app.kubernetes.io/name".to_string(),
+        "lux-gateway".to_string(),
+    );
     labels.insert("app.kubernetes.io/instance".to_string(), name.to_string());
-    labels.insert("app.kubernetes.io/component".to_string(), "gateway".to_string());
-    labels.insert("app.kubernetes.io/managed-by".to_string(), "lux-operator".to_string());
+    labels.insert(
+        "app.kubernetes.io/component".to_string(),
+        "gateway".to_string(),
+    );
+    labels.insert(
+        "app.kubernetes.io/managed-by".to_string(),
+        "lux-operator".to_string(),
+    );
     labels
 }
 

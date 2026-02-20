@@ -68,7 +68,10 @@ impl NodeId {
     }
 
     pub fn to_cb58_string(&self) -> String {
-        format!("NodeID-{}", bs58::encode(&self.0).with_check().into_string())
+        format!(
+            "NodeID-{}",
+            bs58::encode(&self.0).with_check().into_string()
+        )
     }
 }
 

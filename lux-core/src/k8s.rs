@@ -284,23 +284,17 @@ impl ResourceSpec {
 
     /// Create a preset for small nodes
     pub fn small() -> Self {
-        Self::new()
-            .with_cpu("1", "2")
-            .with_memory("4Gi", "8Gi")
+        Self::new().with_cpu("1", "2").with_memory("4Gi", "8Gi")
     }
 
     /// Create a preset for medium nodes
     pub fn medium() -> Self {
-        Self::new()
-            .with_cpu("2", "4")
-            .with_memory("8Gi", "16Gi")
+        Self::new().with_cpu("2", "4").with_memory("8Gi", "16Gi")
     }
 
     /// Create a preset for large nodes
     pub fn large() -> Self {
-        Self::new()
-            .with_cpu("4", "8")
-            .with_memory("16Gi", "32Gi")
+        Self::new().with_cpu("4", "8").with_memory("16Gi", "32Gi")
     }
 }
 
@@ -869,8 +863,7 @@ mod tests {
 
     #[test]
     fn test_subnet_spec_builder() {
-        let vm = VmSpec::subnet_evm()
-            .with_genesis(serde_json::json!({"chainId": 12345}));
+        let vm = VmSpec::subnet_evm().with_genesis(serde_json::json!({"chainId": 12345}));
 
         let subnet = LuxSubnetSpec::new("my-network", vm)
             .with_validator("NodeID-abc123", 100)

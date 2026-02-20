@@ -3,7 +3,7 @@
 use crate::spec::BlizzardSpec;
 use anyhow::Result;
 use aws_sdk_cloudformation::types::StackStatus;
-use aws_sdk_cloudwatch::types::{Dimension, Metric, MetricStat, MetricDataQuery, Statistic};
+use aws_sdk_cloudwatch::types::{Dimension, Metric, MetricDataQuery, MetricStat, Statistic};
 use aws_sdk_ec2::types::Filter;
 use chrono::{DateTime, Duration, Utc};
 use std::collections::BTreeMap;
@@ -48,7 +48,10 @@ pub async fn execute(spec_file: &str, include_metrics: bool, metrics_minutes: i6
     println!("Blizzard Deployment Status");
     println!("==========================");
     println!("ID: {}", spec.id);
-    println!("Deployed at: {}", state.deployed_at.as_deref().unwrap_or("unknown"));
+    println!(
+        "Deployed at: {}",
+        state.deployed_at.as_deref().unwrap_or("unknown")
+    );
     println!();
 
     // Query each region
@@ -89,7 +92,9 @@ async fn query_stack_status(
     state: &crate::spec::DeploymentState,
 ) -> Result<()> {
     let config = aws_config::defaults(aws_config::BehaviorVersion::latest())
-        .region(aws_sdk_cloudformation::config::Region::new(region.to_string()))
+        .region(aws_sdk_cloudformation::config::Region::new(
+            region.to_string(),
+        ))
         .load()
         .await;
 
@@ -144,16 +149,9 @@ async fn query_instances(spec: &BlizzardSpec, region: &str) -> Result<Vec<Instan
 
     let client = aws_sdk_ec2::Client::new(&config);
 
-    let filter = Filter::builder()
-        .name("tag:ID")
-        .values(&spec.id)
-        .build();
+    let filter = Filter::builder().name("tag:ID").values(&spec.id).build();
 
-    let resp = client
-        .describe_instances()
-        .filters(filter)
-        .send()
-        .await?;
+    let resp = client.describe_instances().filters(filter).send().await?;
 
     let mut instances = Vec::new();
 
@@ -165,9 +163,7 @@ async fn query_instances(spec: &BlizzardSpec, region: &str) -> Result<Vec<Instan
                 .map(|n| n.as_str().to_string())
                 .unwrap_or_else(|| "unknown".to_string());
 
-            let launch_time = instance
-                .launch_time()
-                .map(|t| t.to_string());
+            let launch_time = instance.launch_time().map(|t| t.to_string());
 
             instances.push(InstanceStatus {
                 instance_id: instance.instance_id().unwrap_or("unknown").to_string(),

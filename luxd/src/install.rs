@@ -153,7 +153,10 @@ pub async fn install_subnet(
         fs::create_dir_all(&config_dir)?;
         let config_dest = config_dir.join(format!("{}.json", subnet_id));
         fs::copy(local_path, &config_dest)?;
-        info!("Installed subnet config from {:?} to {:?}", local_path, config_dest);
+        info!(
+            "Installed subnet config from {:?} to {:?}",
+            local_path, config_dest
+        );
     }
 
     // Update luxd config to track subnet
@@ -173,7 +176,10 @@ pub async fn install_chain(
     chain_config_s3_key: &str,
     chain_config_local_path: &str,
 ) -> Result<()> {
-    info!("Installing chain config from S3: s3://{}/{}", s3_bucket, chain_config_s3_key);
+    info!(
+        "Installing chain config from S3: s3://{}/{}",
+        s3_bucket, chain_config_s3_key
+    );
 
     // Initialize S3 client
     let aws_config = aws_config::from_env()
@@ -187,8 +193,8 @@ pub async fn install_chain(
 
     // Parse to validate JSON
     let config_contents = fs::read_to_string(&temp_path)?;
-    let _: serde_json::Value = serde_json::from_str(&config_contents)
-        .context("Invalid JSON in chain config")?;
+    let _: serde_json::Value =
+        serde_json::from_str(&config_contents).context("Invalid JSON in chain config")?;
 
     // Extract chain ID from path (e.g., "C/config.json" -> "C")
     let chain_id = extract_chain_id(chain_config_s3_key)?;
@@ -240,11 +246,7 @@ fn detect_architecture() -> Result<Arch> {
 }
 
 /// Download file from S3
-async fn download_from_s3(
-    client: &aws_sdk_s3::Client,
-    bucket: &str,
-    key: &str,
-) -> Result<PathBuf> {
+async fn download_from_s3(client: &aws_sdk_s3::Client, bucket: &str, key: &str) -> Result<PathBuf> {
     let response = client
         .get_object()
         .bucket(bucket)
@@ -382,9 +384,7 @@ fn verify_binary(path: &Path) -> Result<()> {
 /// Create system user for luxd
 fn create_system_user() -> Result<()> {
     // Check if user exists
-    let output = std::process::Command::new("id")
-        .arg("luxd")
-        .output()?;
+    let output = std::process::Command::new("id").arg("luxd").output()?;
 
     if output.status.success() {
         debug!("User luxd already exists");
@@ -402,10 +402,14 @@ fn create_system_user() -> Result<()> {
     let status = std::process::Command::new("useradd")
         .args([
             "--system",
-            "--gid", "luxd",
-            "--home-dir", "/var/lib/luxd",
-            "--shell", "/usr/sbin/nologin",
-            "--comment", "Lux Network Node",
+            "--gid",
+            "luxd",
+            "--home-dir",
+            "/var/lib/luxd",
+            "--shell",
+            "/usr/sbin/nologin",
+            "--comment",
+            "Lux Network Node",
             "luxd",
         ])
         .status()?;
@@ -437,7 +441,13 @@ fn create_directories() -> Result<()> {
 
     // Set ownership
     let _ = std::process::Command::new("chown")
-        .args(["-R", "luxd:luxd", "/var/lib/luxd", "/var/log/luxd", "/etc/luxd"])
+        .args([
+            "-R",
+            "luxd:luxd",
+            "/var/lib/luxd",
+            "/var/log/luxd",
+            "/etc/luxd",
+        ])
         .output();
 
     info!("Created required directories");

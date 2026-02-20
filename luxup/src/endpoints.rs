@@ -41,10 +41,7 @@ pub async fn execute(spec_file: &str) -> Result<()> {
 }
 
 /// Print AWS endpoints and check health
-async fn print_aws_endpoints(
-    spec: &Spec,
-    aws: &lux_core::spec::AwsConfig,
-) -> Result<()> {
+async fn print_aws_endpoints(spec: &Spec, aws: &lux_core::spec::AwsConfig) -> Result<()> {
     println!("Target: AWS");
     println!("Regions: {}", aws.regions.join(", "));
     println!("S3 Bucket: {}", aws.s3_bucket);
@@ -62,29 +59,21 @@ async fn print_aws_endpoints(
         let mut health_results = Vec::new();
 
         for node in nodes {
-            let health = check_node_health(
-                &node.node_id,
-                &node.public_ip,
-                node.http_port,
-            )
-            .await;
+            let health = check_node_health(&node.node_id, &node.public_ip, node.http_port).await;
 
             let status_icon = if health.healthy { "[OK]" } else { "[FAIL]" };
-            let node_type = if node.is_anchor { "anchor" } else { "validator" };
+            let node_type = if node.is_anchor {
+                "anchor"
+            } else {
+                "validator"
+            };
 
             println!(
                 "{} {} ({}) - {} ({})",
-                status_icon,
-                node.node_id,
-                node_type,
-                node.region,
-                health.message
+                status_icon, node.node_id, node_type, node.region, health.message
             );
             println!("    HTTP:    http://{}:{}", node.public_ip, node.http_port);
-            println!(
-                "    Staking: {}:{}",
-                node.public_ip, node.staking_port
-            );
+            println!("    Staking: {}:{}", node.public_ip, node.staking_port);
             println!(
                 "    SSH:     ssh -i {}-{}.pem ubuntu@{}",
                 spec.id, node.region, node.public_ip
@@ -109,7 +98,10 @@ async fn print_aws_endpoints(
             println!("Unhealthy nodes:");
             for health in &health_results {
                 if !health.healthy {
-                    println!("  {} - {} ({})", health.node_id, health.endpoint, health.message);
+                    println!(
+                        "  {} - {} ({})",
+                        health.node_id, health.endpoint, health.message
+                    );
                 }
             }
         }
@@ -155,10 +147,7 @@ async fn print_aws_endpoints(
 }
 
 /// Print Kubernetes endpoints and check health
-async fn print_k8s_endpoints(
-    spec: &Spec,
-    k8s: &lux_core::spec::K8sConfig,
-) -> Result<()> {
+async fn print_k8s_endpoints(spec: &Spec, k8s: &lux_core::spec::K8sConfig) -> Result<()> {
     println!("Target: Kubernetes");
     println!("Namespace: {}", k8s.namespace);
     println!("Image: {}:{}", k8s.image_repository, k8s.image_tag);
@@ -167,14 +156,8 @@ async fn print_k8s_endpoints(
     // Internal services
     println!("Internal Services:");
     println!("{:-<80}", "");
-    println!(
-        "  HTTP:    luxd.{}.svc.cluster.local:9650",
-        k8s.namespace
-    );
-    println!(
-        "  Staking: luxd.{}.svc.cluster.local:9651",
-        k8s.namespace
-    );
+    println!("  HTTP:    luxd.{}.svc.cluster.local:9650", k8s.namespace);
+    println!("  Staking: luxd.{}.svc.cluster.local:9651", k8s.namespace);
 
     if k8s.metrics_enabled {
         println!(
@@ -192,15 +175,16 @@ async fn print_k8s_endpoints(
 
         for (i, node) in nodes.iter().enumerate() {
             let pod_name = format!("luxd-{}", i);
-            let pod_dns = format!(
-                "{}.luxd.{}.svc.cluster.local",
-                pod_name, k8s.namespace
-            );
+            let pod_dns = format!("{}.luxd.{}.svc.cluster.local", pod_name, k8s.namespace);
 
             let health = check_node_health(&node.node_id, &node.public_ip, node.http_port).await;
 
             let status_icon = if health.healthy { "[OK]" } else { "[FAIL]" };
-            let node_type = if node.is_anchor { "anchor" } else { "validator" };
+            let node_type = if node.is_anchor {
+                "anchor"
+            } else {
+                "validator"
+            };
 
             println!(
                 "{} {} ({}) - {}",
@@ -358,11 +342,7 @@ async fn check_bootstrapped(ip: &str, port: u16, chain: &str) -> Result<bool> {
         }
     });
 
-    let response = client
-        .post(&url)
-        .json(&body)
-        .send()
-        .await?;
+    let response = client.post(&url).json(&body).send().await?;
 
     let json: serde_json::Value = response.json().await?;
 

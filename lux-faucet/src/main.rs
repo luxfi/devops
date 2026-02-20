@@ -20,13 +20,7 @@ use governor::{
     Quota, RateLimiter,
 };
 use serde::{Deserialize, Serialize};
-use std::{
-    collections::HashMap,
-    net::SocketAddr,
-    num::NonZeroU32,
-    sync::Arc,
-    time::Duration,
-};
+use std::{collections::HashMap, net::SocketAddr, num::NonZeroU32, sync::Arc, time::Duration};
 use tokio::sync::RwLock;
 use tracing::{error, info, warn, Level};
 use tracing_subscriber::FmtSubscriber;
@@ -77,7 +71,8 @@ struct AppState {
     drip_amount_wei: U256,
     drip_count: Arc<RwLock<u64>>,
     chain_id: u64,
-    rate_limiters: Arc<RwLock<HashMap<String, Arc<RateLimiter<NotKeyed, InMemoryState, DefaultClock>>>>>,
+    rate_limiters:
+        Arc<RwLock<HashMap<String, Arc<RateLimiter<NotKeyed, InMemoryState, DefaultClock>>>>>,
     requests_per_minute: u32,
     http_client: reqwest::Client,
 }
@@ -154,7 +149,8 @@ async fn main() -> anyhow::Result<()> {
 
     info!("Faucet address: {}", signer.address());
 
-    let drip_amount_wei = U256::from(cli.drip_amount) * U256::from(10).pow(U256::from(LUX_DECIMALS));
+    let drip_amount_wei =
+        U256::from(cli.drip_amount) * U256::from(10).pow(U256::from(LUX_DECIMALS));
 
     let state = AppState {
         rpc_endpoint: cli.rpc_endpoint,
@@ -288,7 +284,9 @@ async fn get_nonce(state: &AppState, address: Address) -> anyhow::Result<u64> {
         anyhow::bail!("RPC error: {}", err.message);
     }
 
-    let nonce_hex = response.result.ok_or_else(|| anyhow::anyhow!("No result"))?;
+    let nonce_hex = response
+        .result
+        .ok_or_else(|| anyhow::anyhow!("No result"))?;
     let nonce = u64::from_str_radix(nonce_hex.trim_start_matches("0x"), 16)?;
     Ok(nonce)
 }
@@ -315,7 +313,9 @@ async fn get_gas_price(state: &AppState) -> anyhow::Result<u128> {
         anyhow::bail!("RPC error: {}", err.message);
     }
 
-    let gas_hex = response.result.ok_or_else(|| anyhow::anyhow!("No result"))?;
+    let gas_hex = response
+        .result
+        .ok_or_else(|| anyhow::anyhow!("No result"))?;
     let gas_price = u128::from_str_radix(gas_hex.trim_start_matches("0x"), 16)?;
     Ok(gas_price)
 }
@@ -408,7 +408,10 @@ async fn drip(
     Json(request): Json<DripRequest>,
 ) -> Result<Json<DripResponse>, StatusCode> {
     let client_ip = extract_client_ip(&headers, &ConnectInfo(addr));
-    info!("Drip request from {} for address: {}", client_ip, request.address);
+    info!(
+        "Drip request from {} for address: {}",
+        client_ip, request.address
+    );
 
     // Validate address format.
     let to_address = match validate_address(&request.address) {
@@ -509,7 +512,10 @@ async fn drip(
             Ok(Json(DripResponse {
                 success: true,
                 tx_hash: Some(tx_hash),
-                message: format!("Sent {} LUX", state.drip_amount_wei / U256::from(10).pow(U256::from(LUX_DECIMALS))),
+                message: format!(
+                    "Sent {} LUX",
+                    state.drip_amount_wei / U256::from(10).pow(U256::from(LUX_DECIMALS))
+                ),
             }))
         }
         Ok(false) => {

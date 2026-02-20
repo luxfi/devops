@@ -101,17 +101,18 @@ enum AgentCommand {
 
 /// Run the agent daemon
 pub async fn run(use_default_config: bool, publish_periodic_node_info: bool) -> Result<()> {
-    info!("Initializing agent (default_config={}, publish_info={})",
-        use_default_config, publish_periodic_node_info);
+    info!(
+        "Initializing agent (default_config={}, publish_info={})",
+        use_default_config, publish_periodic_node_info
+    );
 
     // Set up signal handlers
     let shutdown = Arc::new(AtomicBool::new(false));
     let shutdown_signal = shutdown.clone();
 
     tokio::spawn(async move {
-        let mut sigterm = tokio::signal::unix::signal(
-            tokio::signal::unix::SignalKind::terminate()
-        ).expect("Failed to install SIGTERM handler");
+        let mut sigterm = tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())
+            .expect("Failed to install SIGTERM handler");
 
         tokio::select! {
             _ = sigterm.recv() => {
@@ -327,7 +328,10 @@ async fn load_node_config(
         return Ok(LuxdConfig::default());
     }
 
-    let key = format!("{}/config/{}/node.json", config.cluster_id, config.instance_id);
+    let key = format!(
+        "{}/config/{}/node.json",
+        config.cluster_id, config.instance_id
+    );
 
     match s3_client
         .get_object()
@@ -343,7 +347,10 @@ async fn load_node_config(
             Ok(config)
         }
         Err(e) => {
-            warn!("Failed to load config from S3 ({}), using default: {}", key, e);
+            warn!(
+                "Failed to load config from S3 ({}), using default: {}",
+                key, e
+            );
             Ok(LuxdConfig::default())
         }
     }
@@ -541,7 +548,10 @@ async fn publish_node_state(
     config: &AgentConfig,
     state: &AgentState,
 ) -> Result<()> {
-    let key = format!("{}/nodes/{}/state.json", config.cluster_id, config.instance_id);
+    let key = format!(
+        "{}/nodes/{}/state.json",
+        config.cluster_id, config.instance_id
+    );
     let body = serde_json::to_string_pretty(state)?;
 
     s3_client

@@ -11,8 +11,8 @@ use anyhow::{anyhow, Context, Result};
 use aws_config::BehaviorVersion;
 use aws_sdk_kms::primitives::Blob;
 use aws_sdk_kms::types::EncryptionAlgorithmSpec;
-use aws_sdk_s3::Client as S3Client;
 use aws_sdk_kms::Client as KmsClient;
+use aws_sdk_s3::Client as S3Client;
 use clap::Parser;
 use flate2::read::GzDecoder;
 use tracing::{debug, info, Level};
@@ -73,11 +73,7 @@ struct Cli {
 }
 
 /// Download object from S3
-async fn download_from_s3(
-    client: &S3Client,
-    bucket: &str,
-    key: &str,
-) -> Result<Vec<u8>> {
+async fn download_from_s3(client: &S3Client, bucket: &str, key: &str) -> Result<Vec<u8>> {
     debug!("Downloading s3://{}/{}", bucket, key);
 
     let resp = client
@@ -96,7 +92,12 @@ async fn download_from_s3(
         .into_bytes()
         .to_vec();
 
-    debug!("Downloaded {} bytes from s3://{}/{}", data.len(), bucket, key);
+    debug!(
+        "Downloaded {} bytes from s3://{}/{}",
+        data.len(),
+        bucket,
+        key
+    );
     Ok(data)
 }
 
@@ -107,7 +108,11 @@ async fn decrypt_with_kms(
     ciphertext: &[u8],
     aad_tag: &str,
 ) -> Result<Vec<u8>> {
-    debug!("Decrypting {} bytes with KMS key {}", ciphertext.len(), key_id);
+    debug!(
+        "Decrypting {} bytes with KMS key {}",
+        ciphertext.len(),
+        key_id
+    );
 
     let resp = client
         .decrypt()
@@ -138,7 +143,11 @@ fn decompress_if_needed(data: Vec<u8>) -> Result<Vec<u8>> {
         decoder
             .read_to_end(&mut decompressed)
             .context("Failed to decompress gzip data")?;
-        debug!("Decompressed {} -> {} bytes", data.len(), decompressed.len());
+        debug!(
+            "Decompressed {} -> {} bytes",
+            data.len(),
+            decompressed.len()
+        );
         Ok(decompressed)
     } else {
         debug!("No compression detected");
@@ -155,8 +164,8 @@ fn write_file(path: &str, data: &[u8], mode: u32) -> Result<()> {
             .with_context(|| format!("Failed to create directory {:?}", parent))?;
     }
 
-    let mut file = File::create(path)
-        .with_context(|| format!("Failed to create file {}", path.display()))?;
+    let mut file =
+        File::create(path).with_context(|| format!("Failed to create file {}", path.display()))?;
 
     file.write_all(data)
         .with_context(|| format!("Failed to write to {}", path.display()))?;
@@ -168,7 +177,12 @@ fn write_file(path: &str, data: &[u8], mode: u32) -> Result<()> {
     fs::set_permissions(path, perms)
         .with_context(|| format!("Failed to set permissions on {}", path.display()))?;
 
-    debug!("Wrote {} bytes to {} with mode {:o}", data.len(), path.display(), mode);
+    debug!(
+        "Wrote {} bytes to {} with mode {:o}",
+        data.len(),
+        path.display(),
+        mode
+    );
     Ok(())
 }
 

@@ -513,10 +513,16 @@ impl Spec {
 
         // Check cluster ID
         if self.id.is_empty() {
-            return Err(SpecError::Validation("cluster id cannot be empty".to_string()));
+            return Err(SpecError::Validation(
+                "cluster id cannot be empty".to_string(),
+            ));
         }
 
-        if !self.id.chars().all(|c| c.is_alphanumeric() || c == '-' || c == '_') {
+        if !self
+            .id
+            .chars()
+            .all(|c| c.is_alphanumeric() || c == '-' || c == '_')
+        {
             return Err(SpecError::Validation(
                 "cluster id must be alphanumeric with dashes or underscores".to_string(),
             ));

@@ -201,9 +201,7 @@ async fn deploy_aws(spec: &mut Spec, config: &AwsConfig, spec_file: &str) -> Res
                     &vpc_id,
                     &spec.machine,
                     spec.network.anchor_nodes,
-                    spec.luxd_release_tag
-                        .as_deref()
-                        .unwrap_or("v1.0.0"),
+                    spec.luxd_release_tag.as_deref().unwrap_or("v1.0.0"),
                 )
                 .await?,
             )
@@ -233,9 +231,7 @@ async fn deploy_aws(spec: &mut Spec, config: &AwsConfig, spec_file: &str) -> Res
                     &vpc_id,
                     &spec.machine,
                     spec.network.non_anchor_nodes,
-                    spec.luxd_release_tag
-                        .as_deref()
-                        .unwrap_or("v1.0.0"),
+                    spec.luxd_release_tag.as_deref().unwrap_or("v1.0.0"),
                 )
                 .await?,
             )
@@ -279,11 +275,7 @@ async fn deploy_aws(spec: &mut Spec, config: &AwsConfig, spec_file: &str) -> Res
 }
 
 /// Create S3 bucket if it doesn't exist
-async fn create_s3_bucket(
-    client: &aws_sdk_s3::Client,
-    bucket: &str,
-    region: &str,
-) -> Result<()> {
+async fn create_s3_bucket(client: &aws_sdk_s3::Client, bucket: &str, region: &str) -> Result<()> {
     let head_result = client.head_bucket().bucket(bucket).send().await;
     if head_result.is_ok() {
         info!(bucket = %bucket, "S3 bucket already exists");
@@ -303,10 +295,7 @@ async fn create_s3_bucket(
         request = request.create_bucket_configuration(config);
     }
 
-    request
-        .send()
-        .await
-        .context("Failed to create S3 bucket")?;
+    request.send().await.context("Failed to create S3 bucket")?;
 
     // Enable versioning
     client
@@ -429,11 +418,7 @@ async fn create_ec2_key_pair(
     key_path: &str,
 ) -> Result<()> {
     // Check if key exists
-    let existing = client
-        .describe_key_pairs()
-        .key_names(key_name)
-        .send()
-        .await;
+    let existing = client.describe_key_pairs().key_names(key_name).send().await;
 
     if existing.is_ok() {
         info!(key_name = %key_name, "EC2 key pair already exists");
@@ -666,24 +651,15 @@ async fn deploy_stack(
     info!(stack_name = %stack_name, "Deploying CloudFormation stack");
 
     // Check if stack exists
-    let existing = client
-        .describe_stacks()
-        .stack_name(stack_name)
-        .send()
-        .await;
+    let existing = client.describe_stacks().stack_name(stack_name).send().await;
 
     let is_update = existing.is_ok()
-        && existing
-            .as_ref()
-            .unwrap()
-            .stacks()
-            .iter()
-            .any(|s| {
-                !matches!(
-                    s.stack_status(),
-                    Some(StackStatus::DeleteComplete) | Some(StackStatus::DeleteInProgress)
-                )
-            });
+        && existing.as_ref().unwrap().stacks().iter().any(|s| {
+            !matches!(
+                s.stack_status(),
+                Some(StackStatus::DeleteComplete) | Some(StackStatus::DeleteInProgress)
+            )
+        });
 
     if is_update {
         info!(stack_name = %stack_name, "Updating existing stack");
@@ -730,10 +706,7 @@ async fn deploy_stack(
 }
 
 /// Wait for CloudFormation stack to complete
-async fn wait_for_stack(
-    client: &aws_sdk_cloudformation::Client,
-    stack_name: &str,
-) -> Result<()> {
+async fn wait_for_stack(client: &aws_sdk_cloudformation::Client, stack_name: &str) -> Result<()> {
     loop {
         let result = client
             .describe_stacks()
@@ -806,12 +779,7 @@ async fn collect_node_info(
 ) -> Result<Vec<NodeInfo>> {
     let result = client
         .describe_instances()
-        .filters(
-            Filter::builder()
-                .name("tag:ID")
-                .values(id)
-                .build(),
-        )
+        .filters(Filter::builder().name("tag:ID").values(id).build())
         .filters(
             Filter::builder()
                 .name("instance-state-name")
@@ -1079,7 +1047,10 @@ async fn deploy_k8s(spec: &mut Spec, config: &K8sConfig, spec_file: &str) -> Res
                 p.status
                     .as_ref()
                     .and_then(|s| s.conditions.as_ref())
-                    .map(|c| c.iter().any(|cond| cond.type_ == "Ready" && cond.status == "True"))
+                    .map(|c| {
+                        c.iter()
+                            .any(|cond| cond.type_ == "Ready" && cond.status == "True")
+                    })
                     .unwrap_or(false)
             })
             .count();

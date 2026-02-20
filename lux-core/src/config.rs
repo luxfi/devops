@@ -188,7 +188,10 @@ impl LuxdConfig {
         }
 
         if let Some(ref signer_key) = self.staking_signer_key_file {
-            args.push(format!("--staking-signer-key-file={}", signer_key.display()));
+            args.push(format!(
+                "--staking-signer-key-file={}",
+                signer_key.display()
+            ));
         }
 
         if let Some(ref db_dir) = self.db_dir {
@@ -224,7 +227,10 @@ impl LuxdConfig {
         }
 
         if let Some(ref subnet_config_dir) = self.subnet_config_dir {
-            args.push(format!("--subnet-config-dir={}", subnet_config_dir.display()));
+            args.push(format!(
+                "--subnet-config-dir={}",
+                subnet_config_dir.display()
+            ));
         }
 
         if let Some(ref public_ip) = self.public_ip {
@@ -622,8 +628,14 @@ mod tests {
         let mut config = LuxdConfig::default();
         config.with_bootstrap("1.2.3.4:9651,5.6.7.8:9651", "NodeID-abc,NodeID-def");
 
-        assert_eq!(config.bootstrap_ips, Some("1.2.3.4:9651,5.6.7.8:9651".to_string()));
-        assert_eq!(config.bootstrap_ids, Some("NodeID-abc,NodeID-def".to_string()));
+        assert_eq!(
+            config.bootstrap_ips,
+            Some("1.2.3.4:9651,5.6.7.8:9651".to_string())
+        );
+        assert_eq!(
+            config.bootstrap_ids,
+            Some("NodeID-abc,NodeID-def".to_string())
+        );
     }
 
     #[test]

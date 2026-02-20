@@ -50,7 +50,14 @@ pub async fn execute(
     // Delete resources in each region
     for region in &spec.aws.regions.clone() {
         info!("Deleting resources in region: {}", region);
-        delete_region(&spec, region, &state, delete_s3_objects, delete_cloudwatch_logs).await?;
+        delete_region(
+            &spec,
+            region,
+            &state,
+            delete_s3_objects,
+            delete_cloudwatch_logs,
+        )
+        .await?;
     }
 
     // Clear deployment state
@@ -71,7 +78,9 @@ async fn delete_region(
     delete_logs: bool,
 ) -> Result<()> {
     let config = aws_config::defaults(aws_config::BehaviorVersion::latest())
-        .region(aws_sdk_cloudformation::config::Region::new(region.to_string()))
+        .region(aws_sdk_cloudformation::config::Region::new(
+            region.to_string(),
+        ))
         .load()
         .await;
 
@@ -198,7 +207,11 @@ async fn wait_for_stack_deletion(
     }
 }
 
-async fn delete_s3_objects(config: &aws_config::SdkConfig, bucket: &str, prefix: &str) -> Result<()> {
+async fn delete_s3_objects(
+    config: &aws_config::SdkConfig,
+    bucket: &str,
+    prefix: &str,
+) -> Result<()> {
     let client = aws_sdk_s3::Client::new(config);
 
     info!("Deleting S3 objects with prefix: {}/{}", bucket, prefix);
@@ -254,7 +267,10 @@ async fn delete_s3_objects(config: &aws_config::SdkConfig, bucket: &str, prefix:
     Ok(())
 }
 
-async fn delete_cloudwatch_log_group(config: &aws_config::SdkConfig, log_group: &str) -> Result<()> {
+async fn delete_cloudwatch_log_group(
+    config: &aws_config::SdkConfig,
+    log_group: &str,
+) -> Result<()> {
     let client = aws_sdk_cloudwatch::Client::new(config);
     let _ = client; // CloudWatch Logs requires a separate client
 

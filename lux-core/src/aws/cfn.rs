@@ -279,8 +279,8 @@ impl InstanceRoleStackParams {
 
     /// Build CreateStackOptions for this instance role
     pub fn to_create_options(&self) -> CreateStackOptions {
-        let template =
-            get_template(templates::EC2_INSTANCE_ROLE).expect("EC2 instance role template must be embedded");
+        let template = get_template(templates::EC2_INSTANCE_ROLE)
+            .expect("EC2 instance role template must be embedded");
 
         CreateStackOptions::new(format!("{}-instance-role", self.id), template)
             .with_parameter("Id", &self.id)
@@ -338,12 +338,13 @@ mod tests {
 
     #[test]
     fn test_instance_role_stack_params() {
-        let params =
-            InstanceRoleStackParams::new("test-cluster", "arn:aws:kms:...", "my-bucket");
+        let params = InstanceRoleStackParams::new("test-cluster", "arn:aws:kms:...", "my-bucket");
         let options = params.to_create_options();
 
         assert_eq!(options.stack_name, "test-cluster-instance-role");
-        assert!(options.capabilities.contains(&"CAPABILITY_NAMED_IAM".to_string()));
+        assert!(options
+            .capabilities
+            .contains(&"CAPABILITY_NAMED_IAM".to_string()));
     }
 
     #[test]

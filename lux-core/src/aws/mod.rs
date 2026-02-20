@@ -146,7 +146,11 @@ pub fn cluster_s3_key(cluster_id: &str, prefix: &str, path: &str) -> String {
 
 /// Generate S3 key for node PKI files
 pub fn node_pki_s3_key(cluster_id: &str, node_id: &str, filename: &str) -> String {
-    cluster_s3_key(cluster_id, s3_prefixes::PKI, &format!("{}/{}", node_id, filename))
+    cluster_s3_key(
+        cluster_id,
+        s3_prefixes::PKI,
+        &format!("{}/{}", node_id, filename),
+    )
 }
 
 /// Generate S3 key for bootstrap files
@@ -156,7 +160,11 @@ pub fn bootstrap_s3_key(cluster_id: &str, filename: &str) -> String {
 
 /// Generate S3 key for discovery files
 pub fn discover_s3_key(cluster_id: &str, node_id: &str) -> String {
-    cluster_s3_key(cluster_id, s3_prefixes::DISCOVER, &format!("{}.yaml", node_id))
+    cluster_s3_key(
+        cluster_id,
+        s3_prefixes::DISCOVER,
+        &format!("{}.yaml", node_id),
+    )
 }
 
 #[cfg(test)]
@@ -197,7 +205,10 @@ mod tests {
 
         assert_eq!(opts.server_side_encryption, Some("aws:kms".to_string()));
         assert_eq!(opts.kms_key_id, Some("my-key-id".to_string()));
-        assert_eq!(opts.content_type, Some("application/octet-stream".to_string()));
+        assert_eq!(
+            opts.content_type,
+            Some("application/octet-stream".to_string())
+        );
         assert_eq!(opts.metadata.get("x-custom"), Some(&"value".to_string()));
     }
 

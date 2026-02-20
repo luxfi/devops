@@ -160,16 +160,9 @@ async fn delete_aws(
 }
 
 /// Delete a CloudFormation stack
-async fn delete_stack(
-    client: &aws_sdk_cloudformation::Client,
-    stack_name: &str,
-) -> Result<()> {
+async fn delete_stack(client: &aws_sdk_cloudformation::Client, stack_name: &str) -> Result<()> {
     // Check if stack exists
-    let existing = client
-        .describe_stacks()
-        .stack_name(stack_name)
-        .send()
-        .await;
+    let existing = client.describe_stacks().stack_name(stack_name).send().await;
 
     let stack_exists = existing.is_ok()
         && existing
@@ -177,12 +170,7 @@ async fn delete_stack(
             .unwrap()
             .stacks()
             .iter()
-            .any(|s| {
-                !matches!(
-                    s.stack_status(),
-                    Some(StackStatus::DeleteComplete)
-                )
-            });
+            .any(|s| !matches!(s.stack_status(), Some(StackStatus::DeleteComplete)));
 
     if !stack_exists {
         info!(stack_name = %stack_name, "Stack does not exist or already deleted");
@@ -211,11 +199,7 @@ async fn wait_for_stack_deletion(
     stack_name: &str,
 ) -> Result<()> {
     loop {
-        let result = client
-            .describe_stacks()
-            .stack_name(stack_name)
-            .send()
-            .await;
+        let result = client.describe_stacks().stack_name(stack_name).send().await;
 
         match result {
             Ok(response) => {
@@ -249,15 +233,8 @@ async fn wait_for_stack_deletion(
 }
 
 /// Delete EC2 key pair
-async fn delete_ec2_key_pair(
-    client: &aws_sdk_ec2::Client,
-    key_name: &str,
-) -> Result<()> {
-    let result = client
-        .delete_key_pair()
-        .key_name(key_name)
-        .send()
-        .await;
+async fn delete_ec2_key_pair(client: &aws_sdk_ec2::Client, key_name: &str) -> Result<()> {
+    let result = client.delete_key_pair().key_name(key_name).send().await;
 
     match result {
         Ok(_) => {
@@ -299,11 +276,7 @@ async fn delete_s3_bucket(client: &aws_sdk_s3::Client, bucket: &str) -> Result<(
             }
         };
 
-        let objects: Vec<_> = result
-            .contents()
-            .iter()
-            .filter_map(|o| o.key())
-            .collect();
+        let objects: Vec<_> = result.contents().iter().filter_map(|o| o.key()).collect();
 
         if objects.is_empty() {
             break;
@@ -407,9 +380,7 @@ async fn delete_cloudwatch_log_groups(
     let mut next_token: Option<String> = None;
 
     loop {
-        let mut request = client
-            .describe_log_groups()
-            .log_group_name_prefix(&prefix);
+        let mut request = client.describe_log_groups().log_group_name_prefix(&prefix);
         if let Some(token) = next_token {
             request = request.next_token(token);
         }
@@ -437,10 +408,7 @@ async fn delete_cloudwatch_log_groups(
 }
 
 /// Schedule KMS key for deletion
-async fn schedule_kms_key_deletion(
-    client: &aws_sdk_kms::Client,
-    key_id: &str,
-) -> Result<()> {
+async fn schedule_kms_key_deletion(client: &aws_sdk_kms::Client, key_id: &str) -> Result<()> {
     info!(key_id = %key_id, "Scheduling KMS key for deletion");
 
     let result = client
@@ -484,10 +452,7 @@ async fn delete_k8s(spec: &Spec, config: &K8sConfig) -> Result<()> {
 
     // Delete StatefulSet
     let stateful_sets: Api<StatefulSet> = Api::namespaced(client.clone(), &config.namespace);
-    match stateful_sets
-        .delete("luxd", &DeleteParams::default())
-        .await
-    {
+    match stateful_sets.delete("luxd", &DeleteParams::default()).await {
         Ok(_) => info!("StatefulSet deleted"),
         Err(kube::Error::Api(e)) if e.code == 404 => {
             info!("StatefulSet not found");

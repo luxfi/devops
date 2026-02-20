@@ -3,12 +3,12 @@
 //! This crate provides the core types, configurations, and utilities
 //! for deploying and operating Lux Network nodes.
 
-pub mod types;
-pub mod config;
-pub mod spec;
-pub mod aws;
-pub mod k8s;
 pub mod artifacts;
+pub mod aws;
+pub mod config;
+pub mod k8s;
+pub mod spec;
+pub mod types;
 
-pub use types::*;
 pub use config::*;
+pub use types::*;

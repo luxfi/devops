@@ -200,7 +200,8 @@ impl Metrics {
 
     fn record_confirmed(&self, latency_ms: u64) {
         self.txs_confirmed.fetch_add(1, Ordering::Relaxed);
-        self.total_latency_ms.fetch_add(latency_ms, Ordering::Relaxed);
+        self.total_latency_ms
+            .fetch_add(latency_ms, Ordering::Relaxed);
 
         // Update min (compare-and-swap loop)
         let mut current = self.min_latency_ms.load(Ordering::Relaxed);
@@ -408,27 +409,42 @@ impl EvmClient {
     }
 
     async fn get_nonce(&self, address: &str) -> Result<u64> {
-        let resp = self.rpc_call("eth_getTransactionCount", serde_json::json!([address, "pending"])).await?;
+        let resp = self
+            .rpc_call(
+                "eth_getTransactionCount",
+                serde_json::json!([address, "pending"]),
+            )
+            .await?;
         let nonce_hex = resp.as_str().context("invalid nonce response")?;
         let nonce = u64::from_str_radix(nonce_hex.strip_prefix("0x").unwrap_or(nonce_hex), 16)?;
         Ok(nonce)
     }
 
     async fn get_balance(&self, address: &str) -> Result<u128> {
-        let resp = self.rpc_call("eth_getBalance", serde_json::json!([address, "latest"])).await?;
+        let resp = self
+            .rpc_call("eth_getBalance", serde_json::json!([address, "latest"]))
+            .await?;
         let balance_hex = resp.as_str().context("invalid balance response")?;
-        let balance = u128::from_str_radix(balance_hex.strip_prefix("0x").unwrap_or(balance_hex), 16)?;
+        let balance =
+            u128::from_str_radix(balance_hex.strip_prefix("0x").unwrap_or(balance_hex), 16)?;
         Ok(balance)
     }
 
     async fn send_raw_transaction(&self, raw_tx: &str) -> Result<String> {
-        let resp = self.rpc_call("eth_sendRawTransaction", serde_json::json!([raw_tx])).await?;
-        let tx_hash = resp.as_str().context("invalid tx hash response")?.to_string();
+        let resp = self
+            .rpc_call("eth_sendRawTransaction", serde_json::json!([raw_tx]))
+            .await?;
+        let tx_hash = resp
+            .as_str()
+            .context("invalid tx hash response")?
+            .to_string();
         Ok(tx_hash)
     }
 
     async fn get_transaction_receipt(&self, tx_hash: &str) -> Result<Option<serde_json::Value>> {
-        let resp = self.rpc_call("eth_getTransactionReceipt", serde_json::json!([tx_hash])).await?;
+        let resp = self
+            .rpc_call("eth_getTransactionReceipt", serde_json::json!([tx_hash]))
+            .await?;
         if resp.is_null() {
             Ok(None)
         } else {
@@ -444,7 +460,8 @@ impl EvmClient {
             "params": params
         });
 
-        let response: serde_json::Value = self.client
+        let response: serde_json::Value = self
+            .client
             .post(&self.endpoint)
             .json(&request)
             .send()
@@ -458,7 +475,10 @@ impl EvmClient {
             bail!("RPC error: {}", error);
         }
 
-        response.get("result").cloned().context("missing result in RPC response")
+        response
+            .get("result")
+            .cloned()
+            .context("missing result in RPC response")
     }
 
     /// Create and sign a simple ETH transfer transaction
@@ -619,12 +639,10 @@ impl CloudWatchReporter {
     }
 
     async fn report(&self, snapshot: &MetricsSnapshot) -> Result<()> {
-        let dimensions = vec![
-            Dimension::builder()
-                .name("TestName")
-                .value(&self.test_name)
-                .build(),
-        ];
+        let dimensions = vec![Dimension::builder()
+            .name("TestName")
+            .value(&self.test_name)
+            .build()];
 
         let metrics = vec![
             MetricDatum::builder()
@@ -969,13 +987,18 @@ async fn main() -> Result<()> {
         spec.funder_private_key = Some(funder_key.clone());
     }
 
-    let rpc_endpoint = spec.rpc_endpoint.as_ref()
+    let rpc_endpoint = spec
+        .rpc_endpoint
+        .as_ref()
         .context("RPC endpoint required (--rpc-endpoint or spec file)")?;
 
     info!("starting {} load test: {}", APP_NAME, spec.name);
     info!("test type: {}", spec.test_type);
     info!("target: {}", rpc_endpoint);
-    info!("workers: {}, target TPS: {}, duration: {}s", spec.workers, spec.target_tps, spec.duration_seconds);
+    info!(
+        "workers: {}, target TPS: {}, duration: {}s",
+        spec.workers, spec.target_tps, spec.duration_seconds
+    );
 
     if cli.dry_run {
         info!("dry run - configuration validated");
@@ -993,7 +1016,13 @@ async fn main() -> Result<()> {
 
     // Start CloudWatch reporter if enabled
     let cw_reporter = if !cli.no_cloudwatch {
-        match CloudWatchReporter::new(&spec.cloudwatch_namespace, &spec.name, spec.aws_region.as_deref()).await {
+        match CloudWatchReporter::new(
+            &spec.cloudwatch_namespace,
+            &spec.name,
+            spec.aws_region.as_deref(),
+        )
+        .await
+        {
             Ok(reporter) => Some(Arc::new(reporter)),
             Err(e) => {
                 warn!("failed to initialize CloudWatch reporter: {}", e);
@@ -1059,10 +1088,24 @@ async fn main() -> Result<()> {
     let test_handle = tokio::spawn(async move {
         match test_spec.test_type.as_str() {
             "c-chain-evm" => {
-                run_cchain_test(&test_spec, &test_endpoint, test_metrics, test_rate_limiter, test_shutdown).await
+                run_cchain_test(
+                    &test_spec,
+                    &test_endpoint,
+                    test_metrics,
+                    test_rate_limiter,
+                    test_shutdown,
+                )
+                .await
             }
             "x-chain" => {
-                run_xchain_test(&test_spec, &test_endpoint, test_metrics, test_rate_limiter, test_shutdown).await
+                run_xchain_test(
+                    &test_spec,
+                    &test_endpoint,
+                    test_metrics,
+                    test_rate_limiter,
+                    test_shutdown,
+                )
+                .await
             }
             other => {
                 bail!("unknown test type: {} (valid: c-chain-evm, x-chain)", other)
