@@ -6,7 +6,7 @@ use std::path::PathBuf;
 
 /// luxd node configuration
 /// Matches the CLI flags and config file format for luxd
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct LuxdConfig {
     /// Network ID (1=mainnet, 5=testnet)
@@ -112,6 +112,39 @@ pub struct LuxdConfig {
     /// Additional config entries
     #[serde(flatten)]
     pub extra: HashMap<String, serde_json::Value>,
+}
+
+impl Default for LuxdConfig {
+    fn default() -> Self {
+        Self {
+            network_id: None,
+            http_host: default_http_host(),
+            http_port: default_http_port(),
+            staking_port: default_staking_port(),
+            staking_enabled: default_true(),
+            staking_tls_key_file: None,
+            staking_tls_cert_file: None,
+            staking_signer_key_file: None,
+            db_dir: None,
+            log_dir: None,
+            log_level: default_log_level(),
+            log_display_level: None,
+            bootstrap_ips: None,
+            bootstrap_ids: None,
+            genesis: None,
+            plugin_dir: None,
+            chain_config_dir: None,
+            subnet_config_dir: None,
+            public_ip: None,
+            public_ip_resolution_service: None,
+            index_enabled: None,
+            api_admin_enabled: None,
+            api_info_enabled: None,
+            api_health_enabled: None,
+            track_subnets: None,
+            extra: std::collections::HashMap::new(),
+        }
+    }
 }
 
 fn default_http_host() -> String {
