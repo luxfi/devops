@@ -80,7 +80,7 @@ alloy-primitives = "0.8"
 alloy-signer = "0.6"
 alloy-signer-local = "0.6"
 alloy-consensus = "0.6"
-alloy-network = "0.6"
+alloy-network = "0.12"
 alloy-rpc-types = "0.6"
 alloy-provider = { version = "0.6", features = ["reqwest"] }
 alloy-transport-http = "0.6"
