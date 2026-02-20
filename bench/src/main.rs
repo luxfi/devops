@@ -1038,6 +1038,7 @@ async fn main() -> Result<()> {
     let report_metrics = Arc::clone(&metrics);
     let report_interval = spec.metrics_interval_seconds;
     let report_shutdown = Arc::clone(&shutdown);
+    let report_cw_reporter = cw_reporter.clone();
     let reporter_handle = tokio::spawn(async move {
         let mut interval = interval(Duration::from_secs(report_interval));
         let mut last_sent = 0u64;
@@ -1067,7 +1068,7 @@ async fn main() -> Result<()> {
                         snapshot.avg_latency_ms
                     );
 
-                    if let Some(ref reporter) = cw_reporter {
+                    if let Some(ref reporter) = report_cw_reporter {
                         if let Err(e) = reporter.report(&snapshot).await {
                             warn!("failed to report to CloudWatch: {}", e);
                         }
