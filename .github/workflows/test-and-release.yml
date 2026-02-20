@@ -96,27 +96,14 @@ jobs:
     strategy:
       matrix:
         job:
-          # use the same OS version as EC2/cloud host
-          # otherwise, it can fail with:
-          # error while loading shared libraries: libssl.so.3: cannot open shared object file: No such file or directory
-          # ref. https://github.com/sfackler/rust-openssl/issues/1748
-          # ref. https://doc.rust-lang.org/nightly/rustc/platform-support.html
           - os: ubuntu-20.04
             platform: linux
             target: x86_64-unknown-linux-gnu
 
-          # use the same OS version as CloudFormation template ImageId
-          # https://github.com/sharkdp/fd/blob/master/.github/workflows/CICD.yml
-          #
-          # may require manual builds without cross-linker for linux
-          # https://users.rust-lang.org/t/cant-cross-compile-project-with-openssl/70922
           - os: ubuntu-20.04
             platform: linux
             target: aarch64-unknown-linux-gnu
             use-cross: true
-
-            # allow failures
-            # https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#example-preventing-a-specific-failing-matrix-job-from-failing-a-workflow-run
             experimental: true
 
           - os: macos-latest
@@ -131,8 +118,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
 
-      # https://github.com/sharkdp/fd/blob/master/.github/workflows/CICD.yml
-      # https://github.com/cross-rs/cross/wiki/Recipes#openssl
       - name: Install OS dependencies
         shell: bash
         run: |
@@ -178,7 +163,7 @@ jobs:
         run: cargo install cross --locked
 
       - name: Build
-        run: ${{ env.CARGO_CMD }} build --release --target=${{ matrix.job.target }} --bin avalanche-kms --bin avalanched-aws --bin avalancheup-aws --bin blizzard-aws --bin blizzardup-aws --bin staking-key-cert-s3-downloader --bin staking-signer-key-s3-downloader --bin devnet-faucet
+        run: ${{ env.CARGO_CMD }} build --release --target=${{ matrix.job.target }} --bin luxd-daemon --bin luxup --bin lux-bench --bin lux-benchup --bin staking-key-downloader --bin staking-signer-downloader --bin lux-faucet
 
       - name: Compress binaries
         id: release_artifacts
@@ -187,99 +172,21 @@ jobs:
           TARGET: ${{ matrix.job.target }}
         shell: bash
         run: |
-          if [ "$PLATFORM_NAME" == "linux" ]; then
-
-            cp ./target/${TARGET}/release/avalanche-kms avalanche-kms.${TARGET}
-            echo "file_name_avalanche_kms=avalanche-kms.${TARGET}" >> $GITHUB_OUTPUT
-            tar -czvf avalanche-kms.${TARGET}.tar.gz -C ./target/${TARGET}/release avalanche-kms
-            echo "file_name_avalanche_kms_tar_gz=avalanche-kms.${TARGET}.tar.gz" >> $GITHUB_OUTPUT
-
-            cp ./target/${TARGET}/release/avalanched-aws avalanched-aws.${TARGET}
-            echo "file_name_avalanched_aws=avalanched-aws.${TARGET}" >> $GITHUB_OUTPUT
-            tar -czvf avalanched-aws.${TARGET}.tar.gz -C ./target/${TARGET}/release avalanched-aws
-            echo "file_name_avalanched_aws_tar_gz=avalanched-aws.${TARGET}.tar.gz" >> $GITHUB_OUTPUT
-
-            cp ./target/${TARGET}/release/avalancheup-aws avalancheup-aws.${TARGET}
-            echo "file_name_avalancheup_aws=avalancheup-aws.${TARGET}" >> $GITHUB_OUTPUT
-            tar -czvf avalancheup-aws.${TARGET}.tar.gz -C ./target/${TARGET}/release avalancheup-aws
-            echo "file_name_avalancheup_aws_tar_gz=avalancheup-aws.${TARGET}.tar.gz" >> $GITHUB_OUTPUT
-
-            cp ./target/${TARGET}/release/blizzard-aws blizzard-aws.${TARGET}
-            echo "file_name_blizzard_aws=blizzard-aws.${TARGET}" >> $GITHUB_OUTPUT
-            tar -czvf blizzard-aws.${TARGET}.tar.gz -C ./target/${TARGET}/release blizzard-aws
-            echo "file_name_blizzard_aws_tar_gz=blizzard-aws.${TARGET}.tar.gz" >> $GITHUB_OUTPUT
-
-            cp ./target/${TARGET}/release/blizzardup-aws blizzardup-aws.${TARGET}
-            echo "file_name_blizzardup_aws=blizzardup-aws.${TARGET}" >> $GITHUB_OUTPUT
-            tar -czvf blizzardup-aws.${TARGET}.tar.gz -C ./target/${TARGET}/release blizzardup-aws
-            echo "file_name_blizzardup_aws_tar_gz=blizzardup-aws.${TARGET}.tar.gz" >> $GITHUB_OUTPUT
-
-            cp ./target/${TARGET}/release/staking-key-cert-s3-downloader staking-key-cert-s3-downloader.${TARGET}
-            echo "file_name_staking_key_cert_s3_downloader=staking-key-cert-s3-downloader.${TARGET}" >> $GITHUB_OUTPUT
-            tar -czvf staking-key-cert-s3-downloader.${TARGET}.tar.gz -C ./target/${TARGET}/release staking-key-cert-s3-downloader
-            echo "file_name_staking_key_cert_s3_downloader_tar_gz=staking-key-cert-s3-downloader.${TARGET}.tar.gz" >> $GITHUB_OUTPUT
-
-            cp ./target/${TARGET}/release/staking-signer-key-s3-downloader staking-signer-key-s3-downloader.${TARGET}
-            echo "file_name_staking_signer_key_s3_downloader=staking-signer-key-s3-downloader.${TARGET}" >> $GITHUB_OUTPUT
-            tar -czvf staking-signer-key-s3-downloader.${TARGET}.tar.gz -C ./target/${TARGET}/release staking-signer-key-s3-downloader
-            echo "file_name_staking_signer_key_s3_downloader_tar_gz=staking-signer-key-s3-downloader.${TARGET}.tar.gz" >> $GITHUB_OUTPUT
-
-            cp ./target/${TARGET}/release/devnet-faucet devnet-faucet.${TARGET}
-            echo "file_name_devnet_faucet=devnet-faucet.${TARGET}" >> $GITHUB_OUTPUT
-            tar -czvf devnet-faucet.${TARGET}.tar.gz -C ./target/${TARGET}/release devnet-faucet
-            echo "file_name_devnet_faucet_tar_gz=devnet-faucet.${TARGET}.tar.gz" >> $GITHUB_OUTPUT
-
-          elif [ "$PLATFORM_NAME" == "darwin" ]; then
-
-            cp ./target/${TARGET}/release/avalanche-kms avalanche-kms.${TARGET}
-            echo "file_name_avalanche_kms=avalanche-kms.${TARGET}" >> $GITHUB_OUTPUT
-            gtar -czvf avalanche-kms.${TARGET}.tar.gz -C ./target/${TARGET}/release avalanche-kms
-            echo "file_name_avalanche_kms_tar_gz=avalanche-kms.${TARGET}.tar.gz" >> $GITHUB_OUTPUT
-
-            cp ./target/${TARGET}/release/avalanched-aws avalanched-aws.${TARGET}
-            echo "file_name_avalanched_aws=avalanched-aws.${TARGET}" >> $GITHUB_OUTPUT
-            gtar -czvf avalanched-aws.${TARGET}.tar.gz -C ./target/${TARGET}/release avalanched-aws
-            echo "file_name_avalanched_aws_tar_gz=avalanched-aws.${TARGET}.tar.gz" >> $GITHUB_OUTPUT
-
-            cp ./target/${TARGET}/release/avalancheup-aws avalancheup-aws.${TARGET}
-            echo "file_name_avalancheup_aws=avalancheup-aws.${TARGET}" >> $GITHUB_OUTPUT
-            gtar -czvf avalancheup-aws.${TARGET}.tar.gz -C ./target/${TARGET}/release avalancheup-aws
-            echo "file_name_avalancheup_aws_tar_gz=avalancheup-aws.${TARGET}.tar.gz" >> $GITHUB_OUTPUT
-
-            cp ./target/${TARGET}/release/blizzard-aws blizzard-aws.${TARGET}
-            echo "file_name_blizzard_aws=blizzard-aws.${TARGET}" >> $GITHUB_OUTPUT
-            gtar -czvf blizzard-aws.${TARGET}.tar.gz -C ./target/${TARGET}/release blizzard-aws
-            echo "file_name_blizzard_aws_tar_gz=blizzard-aws.${TARGET}.tar.gz" >> $GITHUB_OUTPUT
-
-            cp ./target/${TARGET}/release/blizzardup-aws blizzardup-aws.${TARGET}
-            echo "file_name_blizzardup_aws=blizzardup-aws.${TARGET}" >> $GITHUB_OUTPUT
-            gtar -czvf blizzardup-aws.${TARGET}.tar.gz -C ./target/${TARGET}/release blizzardup-aws
-            echo "file_name_blizzardup_aws_tar_gz=blizzardup-aws.${TARGET}.tar.gz" >> $GITHUB_OUTPUT
-
-            cp ./target/${TARGET}/release/staking-key-cert-s3-downloader staking-key-cert-s3-downloader.${TARGET}
-            echo "file_name_staking_key_cert_s3_downloader=staking-key-cert-s3-downloader.${TARGET}" >> $GITHUB_OUTPUT
-            gtar -czvf staking-key-cert-s3-downloader.${TARGET}.tar.gz -C ./target/${TARGET}/release staking-key-cert-s3-downloader
-            echo "file_name_staking_key_cert_s3_downloader_tar_gz=staking-key-cert-s3-downloader.${TARGET}.tar.gz" >> $GITHUB_OUTPUT
-
-            cp ./target/${TARGET}/release/staking-signer-key-s3-downloader staking-signer-key-s3-downloader.${TARGET}
-            echo "file_name_staking_signer_key_s3_downloader=staking-signer-key-s3-downloader.${TARGET}" >> $GITHUB_OUTPUT
-            gtar -czvf staking-signer-key-s3-downloader.${TARGET}.tar.gz -C ./target/${TARGET}/release staking-signer-key-s3-downloader
-            echo "file_name_staking_signer_key_s3_downloader_tar_gz=staking-signer-key-s3-downloader.${TARGET}.tar.gz" >> $GITHUB_OUTPUT
-
-            cp ./target/${TARGET}/release/devnet-faucet devnet-faucet.${TARGET}
-            echo "file_name_devnet_faucet=devnet-faucet.${TARGET}" >> $GITHUB_OUTPUT
-            gtar -czvf devnet-faucet.${TARGET}.tar.gz -C ./target/${TARGET}/release devnet-faucet
-            echo "file_name_devnet_faucet_tar_gz=devnet-faucet.${TARGET}.tar.gz" >> $GITHUB_OUTPUT
-
-          else
-
-            echo "skipping $PLATFORM_NAME"
-
+          COMPRESS="tar -czvf"
+          if [ "$PLATFORM_NAME" == "darwin" ]; then
+            COMPRESS="gtar -czvf"
           fi
+
+          for BIN in luxd-daemon luxup lux-bench lux-benchup staking-key-downloader staking-signer-downloader lux-faucet; do
+            SAFE_NAME=$(echo "$BIN" | tr '-' '_')
+            cp "./target/${TARGET}/release/${BIN}" "${BIN}.${TARGET}"
+            echo "file_name_${SAFE_NAME}=${BIN}.${TARGET}" >> $GITHUB_OUTPUT
+            $COMPRESS "${BIN}.${TARGET}.tar.gz" -C "./target/${TARGET}/release" "${BIN}"
+            echo "file_name_${SAFE_NAME}_tar_gz=${BIN}.${TARGET}.tar.gz" >> $GITHUB_OUTPUT
+          done
 
       # release tip from latest commits
       # https://github.com/softprops/action-gh-release
-      # https://docs.github.com/en/actions/learn-github-actions/contexts#github-context
       - name: Release latest
         uses: softprops/action-gh-release@v1
         if: ${{ github.ref == 'refs/heads/main' }}
@@ -290,26 +197,22 @@ jobs:
           prerelease: false
           body: Latest builds from the last commit.
           files: |
-            ${{ steps.release_artifacts.outputs.file_name_avalanche_kms }}
-            ${{ steps.release_artifacts.outputs.file_name_avalanche_kms_tar_gz }}
-            ${{ steps.release_artifacts.outputs.file_name_avalanched_aws }}
-            ${{ steps.release_artifacts.outputs.file_name_avalanched_aws_tar_gz }}
-            ${{ steps.release_artifacts.outputs.file_name_avalancheup_aws }}
-            ${{ steps.release_artifacts.outputs.file_name_avalancheup_aws_tar_gz }}
-            ${{ steps.release_artifacts.outputs.file_name_blizzard_aws }}
-            ${{ steps.release_artifacts.outputs.file_name_blizzard_aws_tar_gz }}
-            ${{ steps.release_artifacts.outputs.file_name_blizzardup_aws }}
-            ${{ steps.release_artifacts.outputs.file_name_blizzardup_aws_tar_gz }}
-            ${{ steps.release_artifacts.outputs.file_name_staking_key_cert_s3_downloader }}
-            ${{ steps.release_artifacts.outputs.file_name_staking_key_cert_s3_downloader_tar_gz }}
-            ${{ steps.release_artifacts.outputs.file_name_staking_signer_key_s3_downloader }}
-            ${{ steps.release_artifacts.outputs.file_name_staking_signer_key_s3_downloader_tar_gz }}
-            ${{ steps.release_artifacts.outputs.file_name_devnet_faucet }}
-            ${{ steps.release_artifacts.outputs.file_name_devnet_faucet_tar_gz }}
+            ${{ steps.release_artifacts.outputs.file_name_luxd_daemon }}
+            ${{ steps.release_artifacts.outputs.file_name_luxd_daemon_tar_gz }}
+            ${{ steps.release_artifacts.outputs.file_name_luxup }}
+            ${{ steps.release_artifacts.outputs.file_name_luxup_tar_gz }}
+            ${{ steps.release_artifacts.outputs.file_name_lux_bench }}
+            ${{ steps.release_artifacts.outputs.file_name_lux_bench_tar_gz }}
+            ${{ steps.release_artifacts.outputs.file_name_lux_benchup }}
+            ${{ steps.release_artifacts.outputs.file_name_lux_benchup_tar_gz }}
+            ${{ steps.release_artifacts.outputs.file_name_staking_key_downloader }}
+            ${{ steps.release_artifacts.outputs.file_name_staking_key_downloader_tar_gz }}
+            ${{ steps.release_artifacts.outputs.file_name_staking_signer_downloader }}
+            ${{ steps.release_artifacts.outputs.file_name_staking_signer_downloader_tar_gz }}
+            ${{ steps.release_artifacts.outputs.file_name_lux_faucet }}
+            ${{ steps.release_artifacts.outputs.file_name_lux_faucet_tar_gz }}
 
       # release only for tags
-      # https://github.com/softprops/action-gh-release
-      # https://docs.github.com/en/actions/learn-github-actions/contexts#github-context
       - name: Release tag
         uses: softprops/action-gh-release@v1
         if: startsWith(github.ref, 'refs/tags/')
@@ -320,19 +223,17 @@ jobs:
           prerelease: false
           body: Release builds for ${{ github.ref_name }}.
           files: |
-            ${{ steps.release_artifacts.outputs.file_name_avalanche_kms }}
-            ${{ steps.release_artifacts.outputs.file_name_avalanche_kms_tar_gz }}
-            ${{ steps.release_artifacts.outputs.file_name_avalanched_aws }}
-            ${{ steps.release_artifacts.outputs.file_name_avalanched_aws_tar_gz }}
-            ${{ steps.release_artifacts.outputs.file_name_avalancheup_aws }}
-            ${{ steps.release_artifacts.outputs.file_name_avalancheup_aws_tar_gz }}
-            ${{ steps.release_artifacts.outputs.file_name_blizzard_aws }}
-            ${{ steps.release_artifacts.outputs.file_name_blizzard_aws_tar_gz }}
-            ${{ steps.release_artifacts.outputs.file_name_blizzardup_aws }}
-            ${{ steps.release_artifacts.outputs.file_name_blizzardup_aws_tar_gz }}
-            ${{ steps.release_artifacts.outputs.file_name_staking_key_cert_s3_downloader }}
-            ${{ steps.release_artifacts.outputs.file_name_staking_key_cert_s3_downloader_tar_gz }}
-            ${{ steps.release_artifacts.outputs.file_name_staking_signer_key_s3_downloader }}
-            ${{ steps.release_artifacts.outputs.file_name_staking_signer_key_s3_downloader_tar_gz }}
-            ${{ steps.release_artifacts.outputs.file_name_devnet_faucet }}
-            ${{ steps.release_artifacts.outputs.file_name_devnet_faucet_tar_gz }}
+            ${{ steps.release_artifacts.outputs.file_name_luxd_daemon }}
+            ${{ steps.release_artifacts.outputs.file_name_luxd_daemon_tar_gz }}
+            ${{ steps.release_artifacts.outputs.file_name_luxup }}
+            ${{ steps.release_artifacts.outputs.file_name_luxup_tar_gz }}
+            ${{ steps.release_artifacts.outputs.file_name_lux_bench }}
+            ${{ steps.release_artifacts.outputs.file_name_lux_bench_tar_gz }}
+            ${{ steps.release_artifacts.outputs.file_name_lux_benchup }}
+            ${{ steps.release_artifacts.outputs.file_name_lux_benchup_tar_gz }}
+            ${{ steps.release_artifacts.outputs.file_name_staking_key_downloader }}
+            ${{ steps.release_artifacts.outputs.file_name_staking_key_downloader_tar_gz }}
+            ${{ steps.release_artifacts.outputs.file_name_staking_signer_downloader }}
+            ${{ steps.release_artifacts.outputs.file_name_staking_signer_downloader_tar_gz }}
+            ${{ steps.release_artifacts.outputs.file_name_lux_faucet }}
+            ${{ steps.release_artifacts.outputs.file_name_lux_faucet_tar_gz }}

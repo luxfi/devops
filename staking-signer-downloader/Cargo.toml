@@ -11,8 +11,6 @@ name = "staking-signer-downloader"
 path = "src/main.rs"
 
 [dependencies]
-lux-core = { path = "../lux-core" }
-
 # Async runtime
 tokio = { workspace = true }
 

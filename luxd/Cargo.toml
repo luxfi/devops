@@ -30,7 +30,6 @@ tracing-subscriber = { workspace = true }
 
 # AWS SDK
 aws-config = { workspace = true }
-aws-sdk-ec2 = { workspace = true }
 aws-sdk-s3 = { workspace = true }
 aws-sdk-cloudwatch = { workspace = true }
 

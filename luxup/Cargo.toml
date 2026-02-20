@@ -33,7 +33,6 @@ aws-config = { workspace = true }
 aws-sdk-ec2 = { workspace = true }
 aws-sdk-s3 = { workspace = true }
 aws-sdk-cloudformation = { workspace = true }
-aws-sdk-ssm = { workspace = true }
 aws-sdk-sts = { workspace = true }
 aws-sdk-kms = { workspace = true }
 aws-sdk-cloudwatchlogs = { workspace = true }
