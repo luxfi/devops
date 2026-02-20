@@ -95,8 +95,10 @@ async fn deploy_region(spec: &mut BlizzardSpec, region: &str) -> Result<()> {
     // Create S3 bucket if needed
     create_s3_bucket_if_needed(&s3_client, &spec.aws.s3_bucket, region).await?;
 
-    // Upload blizzard spec to S3
+    // Upload bench spec to S3 (drop mutable borrow temporarily)
+    drop(state);
     upload_spec_to_s3(&s3_client, spec, region).await?;
+    let state = spec.state.as_mut().expect("state initialized");
 
     // Deploy VPC stack
     let vpc_stack_name = format!("{}-vpc", spec.id);

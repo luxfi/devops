@@ -2,8 +2,8 @@
 
 use anyhow::{Context, Result};
 use lux_core::spec::{
-    AwsConfig, DeploymentTarget, K8sConfig, MachineConfig, NetworkConfig, RegionalResource, Spec,
-    SPEC_VERSION,
+    AwsConfig, DeploymentState, DeploymentTarget, K8sConfig, MachineConfig, NetworkConfig,
+    RegionalResource, Spec, SPEC_VERSION,
 };
 use lux_core::NetworkId;
 use std::collections::BTreeMap;
@@ -84,6 +84,7 @@ pub async fn execute(
         upload_artifacts: None,
         luxd_release_tag: Some("v1.0.0".to_string()),
         created_nodes: None,
+        state: DeploymentState::default(),
     };
 
     let path = Path::new(output);

@@ -462,7 +462,7 @@ async fn drip(
     };
 
     // Build legacy transaction (simple transfer).
-    let tx = TxLegacy {
+    let mut tx = TxLegacy {
         chain_id: Some(state.chain_id),
         nonce,
         gas_price,
@@ -473,7 +473,7 @@ async fn drip(
     };
 
     // Sign the transaction.
-    let signature = match state.signer.sign_transaction_sync(&tx) {
+    let signature = match state.signer.sign_transaction_sync(&mut tx) {
         Ok(sig) => sig,
         Err(e) => {
             error!("Failed to sign transaction: {}", e);
@@ -538,19 +538,19 @@ async fn drip(
 }
 
 /// RLP-encode a signed legacy transaction.
-fn encode_signed_legacy_tx(tx: &TxLegacy, sig: &alloy_primitives::Signature) -> Vec<u8> {
-    use alloy_consensus::SignableTransaction;
-
+fn encode_signed_legacy_tx(tx: &TxLegacy, sig: &alloy_primitives::PrimitiveSignature) -> Vec<u8> {
     // For legacy transactions, we need to RLP encode:
     // [nonce, gasPrice, gasLimit, to, value, data, v, r, s]
     let mut buf = Vec::new();
 
     // Calculate v value for legacy transaction.
     // v = chain_id * 2 + 35 + recovery_id
+    // PrimitiveSignature.v() returns bool (true=1, false=0).
+    let recovery_id = sig.v() as u64;
     let v = if let Some(chain_id) = tx.chain_id {
-        chain_id * 2 + 35 + sig.v().to_u64()
+        chain_id * 2 + 35 + recovery_id
     } else {
-        27 + sig.v().to_u64()
+        27 + recovery_id
     };
 
     // Get r and s as bytes.

@@ -910,6 +910,31 @@ dependencies = [
 ]
 
 [[package]]
+name = "aws-sdk-cloudwatchlogs"
+version = "1.117.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "766226555226185e5ac5b732d78be025ea12166a596fbc723959156683fc4939"
+dependencies = [
+ "aws-credential-types",
+ "aws-runtime",
+ "aws-smithy-async",
+ "aws-smithy-eventstream",
+ "aws-smithy-http",
+ "aws-smithy-json",
+ "aws-smithy-observability",
+ "aws-smithy-runtime",
+ "aws-smithy-runtime-api",
+ "aws-smithy-types",
+ "aws-types",
+ "bytes",
+ "fastrand",
+ "http 0.2.12",
+ "http 1.4.0",
+ "regex-lite",
+ "tracing",
+]
+
+[[package]]
 name = "aws-sdk-ec2"
 version = "1.211.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1503,53 +1528,6 @@ dependencies = [
  "radium",
  "tap",
  "wyz",
-]
-
-[[package]]
-name = "blizzard"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "aws-config",
- "aws-sdk-cloudwatch",
- "clap",
- "hex",
- "rand 0.8.5",
- "reqwest 0.11.27",
- "ring",
- "serde",
- "serde_json",
- "serde_yaml",
- "tempfile",
- "tokio",
- "tracing",
- "tracing-subscriber",
-]
-
-[[package]]
-name = "blizzardup"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "aws-config",
- "aws-sdk-cloudformation",
- "aws-sdk-cloudwatch",
- "aws-sdk-ec2",
- "aws-sdk-s3",
- "chrono",
- "clap",
- "lux-core",
- "rand 0.8.5",
- "reqwest 0.11.27",
- "rust-embed",
- "serde",
- "serde_json",
- "serde_yaml",
- "tempfile",
- "tokio",
- "tracing",
- "tracing-subscriber",
- "uuid",
 ]
 
 [[package]]
@@ -3470,6 +3448,53 @@ dependencies = [
 ]
 
 [[package]]
+name = "lux-bench"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "aws-config",
+ "aws-sdk-cloudwatch",
+ "clap",
+ "hex",
+ "rand 0.8.5",
+ "reqwest 0.11.27",
+ "ring",
+ "serde",
+ "serde_json",
+ "serde_yaml",
+ "tempfile",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+]
+
+[[package]]
+name = "lux-benchup"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "aws-config",
+ "aws-sdk-cloudformation",
+ "aws-sdk-cloudwatch",
+ "aws-sdk-ec2",
+ "aws-sdk-s3",
+ "chrono",
+ "clap",
+ "lux-core",
+ "rand 0.8.5",
+ "reqwest 0.11.27",
+ "rust-embed",
+ "serde",
+ "serde_json",
+ "serde_yaml",
+ "tempfile",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+ "uuid",
+]
+
+[[package]]
 name = "lux-core"
 version = "0.1.0"
 dependencies = [
@@ -3588,7 +3613,9 @@ dependencies = [
  "anyhow",
  "aws-config",
  "aws-sdk-cloudformation",
+ "aws-sdk-cloudwatchlogs",
  "aws-sdk-ec2",
+ "aws-sdk-kms",
  "aws-sdk-s3",
  "aws-sdk-ssm",
  "aws-sdk-sts",
@@ -3598,6 +3625,7 @@ dependencies = [
  "kube",
  "lux-core",
  "rand 0.8.5",
+ "reqwest 0.11.27",
  "serde",
  "serde_json",
  "serde_yaml",

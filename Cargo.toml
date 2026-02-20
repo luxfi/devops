@@ -46,6 +46,7 @@ aws-sdk-cloudwatch = "1.9"
 aws-sdk-ssm = "1.9"
 aws-sdk-sts = "1.9"
 aws-sdk-kms = "1.9"
+aws-sdk-cloudwatchlogs = "1.9"
 
 # K8s
 kube = { version = "0.87", features = ["runtime", "derive", "ws"] }

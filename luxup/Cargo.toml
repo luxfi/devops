@@ -35,6 +35,11 @@ aws-sdk-s3 = { workspace = true }
 aws-sdk-cloudformation = { workspace = true }
 aws-sdk-ssm = { workspace = true }
 aws-sdk-sts = { workspace = true }
+aws-sdk-kms = { workspace = true }
+aws-sdk-cloudwatchlogs = { workspace = true }
+
+# HTTP
+reqwest = { workspace = true }
 
 # K8s (for K8s deployments)
 kube = { workspace = true }

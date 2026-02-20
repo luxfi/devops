@@ -1,5 +1,5 @@
 [package]
-name = "blizzardup"
+name = "lux-benchup"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -7,7 +7,7 @@ repository.workspace = true
 description = "Lux Network load testing control plane"
 
 [[bin]]
-name = "blizzardup"
+name = "lux-benchup"
 path = "src/main.rs"
 
 [dependencies]
