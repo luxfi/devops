@@ -3,12 +3,12 @@ kind: ClusterRole
 metadata:
   name: lux-operator
 rules:
-  # CRDs: LuxNetwork / LuxChain
+  # CRDs: LuxNetwork / LuxChain / LuxIndexer / LuxExplorer / LuxGateway
   - apiGroups: ["lux.network"]
-    resources: ["luxnetworks", "luxchains"]
+    resources: ["luxnetworks", "luxchains", "luxindexers", "luxexplorers", "luxgateways"]
     verbs: ["get", "list", "watch", "patch", "update"]
   - apiGroups: ["lux.network"]
-    resources: ["luxnetworks/status", "luxchains/status"]
+    resources: ["luxnetworks/status", "luxchains/status", "luxindexers/status", "luxexplorers/status", "luxgateways/status"]
     verbs: ["get", "patch", "update"]
 
   # Core resources
@@ -16,12 +16,20 @@ rules:
     resources: ["pods", "services", "configmaps", "serviceaccounts"]
     verbs: ["create", "get", "list", "watch", "patch", "update", "delete"]
   - apiGroups: [""]
+    resources: ["pods/exec", "pods/log"]
+    verbs: ["create", "get"]
+  - apiGroups: [""]
     resources: ["secrets"]
     verbs: ["get", "list", "watch"]
 
-  # Apps: StatefulSets
+  # Apps: StatefulSets (network nodes) + Deployments (indexer, explorer, gateway)
   - apiGroups: ["apps"]
-    resources: ["statefulsets"]
+    resources: ["statefulsets", "deployments"]
+    verbs: ["create", "get", "list", "watch", "patch", "update", "delete"]
+
+  # Networking: Ingresses (explorer, gateway)
+  - apiGroups: ["networking.k8s.io"]
+    resources: ["ingresses"]
     verbs: ["create", "get", "list", "watch", "patch", "update", "delete"]
 
   # RBAC: Roles/RoleBindings created per-network (for pod service discovery etc)
@@ -32,6 +40,11 @@ rules:
   # Policy: PodDisruptionBudgets
   - apiGroups: ["policy"]
     resources: ["poddisruptionbudgets"]
+    verbs: ["create", "get", "list", "watch", "patch", "update", "delete"]
+
+  # KMS: KMSSecret resources for staking key sync
+  - apiGroups: ["secrets.lux.network"]
+    resources: ["kmssecrets"]
     verbs: ["create", "get", "list", "watch", "patch", "update", "delete"]
 
   # Events

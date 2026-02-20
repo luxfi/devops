@@ -1,0 +1,14 @@
+apiVersion: v2
+name: blockscout
+description: Blockscout explorer for Lux Network EVM chains
+type: application
+version: 1.0.0
+appVersion: "latest"
+keywords:
+  - blockchain
+  - explorer
+  - blockscout
+  - lux
+maintainers:
+  - name: Lux Team
+    email: dev@lux.network

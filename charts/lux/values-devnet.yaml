@@ -3,18 +3,26 @@ network: devnet
 
 replicas: 5
 
+image:
+  tag: luxd-v1.23.15-debug
+
 bootstrap:
   useHostnames: true
   nodeIDs:
-    - NodeID-8mCxB5QtMDX1S84zaXF7i8vGcP4FJxACH
-    - NodeID-Pss5uJBPNECYvPZVuas9sE8ZwSpwP43Tr
-    - NodeID-F1snfkawAgudnrp4wZWRK6syZwokPRfb2
-    - NodeID-H7KVD16b5b8uzWy9uUdrjzsBLEbbTaUKc
-    - NodeID-aVsqjzUqNNTNDxbRwkCUrwnVgEe5x8Qc
+    - NodeID-Mf3JfSY91oDwfBqf7rCLmhg4NDtDghw1f
+    - NodeID-2TwSZ2oyeBK2mv7JiseEQ8m74rotDj4QR
+    - NodeID-Ld9VFBQ9zGbd79z2vzaAqkQ3jHuqbtRpo
+    - NodeID-8mY2fhUehN27v3LCU84BnnKEoeRfd2weC
+    - NodeID-4smuFz5Z9cm8BEyQU1oPQ9nwgXyMgaNqu
 
-# Data preserved (startTime 1766704800)
 initMode:
   clearData: false
+
+# Snapshot restore from MinIO (internal K8s network)
+seedRestore:
+  enabled: true
+  sourceType: ObjectStore
+  objectStoreUrl: "http://minio.hanzo.svc.cluster.local:9000/lux-snapshots/devnet/devnet-node0-full.tar.gz"
 
 # Devnet consensus - sybil off for development
 consensus:
@@ -31,11 +39,15 @@ chainTracking:
     - spc
     - pars
 
-# EVM chain configs for C + deployed subnet chains (by blockchain ID)
+# EVM chain configs for C + deployed subnet chains (current blockchain IDs)
 chainConfigs:
   enabled: true
   blockchainIDs:
-    - "9caEYTT7d1g57qfh78WfmrnCc8TYVUfWKLPrrrgZnPv11NisX"   # Zoo
-    - "5jTMMEPbJG2xuQzYgUhRsQE9gRm8jvayHsvzQ8xH35HAv6UHC"   # Hanzo
-    - "2PydmLj14vqDhaZgtdb8nVBYc2Z3TUkmqmAwmasiatjEcdhzSk"   # SPC
-    - "2m3UV9zVPKMZJYQyrQWhr49eiQbkhxULVmsTpYTmb11hC1MmQA"  # Pars
+    - "VUPpSeQjZuGZtBoty7xc9HnnkuzAp8oZQ6UQHKiZcVUe7R6h1"   # Zoo
+    - "2Ww4cgRjjNcu6CFY3KFktr3A9n6XgxPqVeonJ1WfaU7JbLVrJN"  # Hanzo
+    - "2uLU64aZ2MEQ4sVSRGJ4Yvj8hSEwFbDgnP8hfVHzLyV6ow2ZJa"  # SPC
+    - "2uphCgXXc246y3uGCXQwgA7j2bCnxFD1uVL2Sg2vXVzVkcbF8D"  # Pars
+
+# Genesis configmap
+genesis:
+  configMapName: luxd-genesis

@@ -1,0 +1,14 @@
+# Mainnet Blockscout explorer overrides
+network: mainnet
+chainId: 96369
+chainName: "LUX Network"
+chainShortName: "LUX"
+coinName: "LUX"
+coinSymbol: "LUX"
+isTestnet: false
+
+rpcUrl: "http://luxd-headless.lux-mainnet.svc.cluster.local:9630/ext/bc/C/rpc"
+wsUrl: "ws://luxd-headless.lux-mainnet.svc.cluster.local:9630/ext/bc/C/ws"
+
+frontendDomain: explore.lux.network
+apiDomain: api-explore.lux.network

@@ -1,0 +1,72 @@
+{{- if .Values.redis.enabled }}
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: exchange-redis
+  namespace: lux-exchange
+  labels:
+    app: exchange
+    component: redis
+spec:
+  serviceName: exchange-redis
+  replicas: 1
+  selector:
+    matchLabels:
+      app: exchange
+      component: redis
+  template:
+    metadata:
+      labels:
+        app: exchange
+        component: redis
+    spec:
+      containers:
+        - name: redis
+          image: {{ .Values.images.redis }}
+          ports:
+            - name: redis
+              containerPort: 6379
+          command: ["redis-server", "--appendonly", "yes", "--maxmemory", "200mb", "--maxmemory-policy", "allkeys-lru"]
+          volumeMounts:
+            - name: data
+              mountPath: /data
+          resources:
+            {{- toYaml .Values.redis.resources | nindent 12 }}
+          livenessProbe:
+            exec:
+              command: ["redis-cli", "ping"]
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          readinessProbe:
+            exec:
+              command: ["redis-cli", "ping"]
+            initialDelaySeconds: 5
+            periodSeconds: 5
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        storageClassName: {{ .Values.redis.storageClass }}
+        resources:
+          requests:
+            storage: {{ .Values.redis.storage }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: exchange-redis
+  namespace: lux-exchange
+  labels:
+    app: exchange
+    component: redis
+spec:
+  type: ClusterIP
+  selector:
+    app: exchange
+    component: redis
+  ports:
+    - name: redis
+      port: 6379
+      targetPort: 6379
+{{- end }}

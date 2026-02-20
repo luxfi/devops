@@ -1,0 +1,14 @@
+# Devnet Blockscout explorer overrides
+network: devnet
+chainId: 96370
+chainName: "LUX Devnet"
+chainShortName: "LUX"
+coinName: "LUX"
+coinSymbol: "LUX"
+isTestnet: true
+
+rpcUrl: "http://luxd-headless.lux-devnet.svc.cluster.local:9650/ext/bc/C/rpc"
+wsUrl: "ws://luxd-headless.lux-devnet.svc.cluster.local:9650/ext/bc/C/ws"
+
+frontendDomain: explore-dev.lux.network
+apiDomain: api-explore-dev.lux.network

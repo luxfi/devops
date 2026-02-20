@@ -1,0 +1,134 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hanzo-bot-site
+  namespace: hanzo
+  labels:
+    app: bot-site
+    app.kubernetes.io/name: bot-site
+    app.kubernetes.io/part-of: hanzo-platform
+    app.kubernetes.io/managed-by: kubectl
+spec:
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: bot-site
+  template:
+    metadata:
+      labels:
+        app: bot-site
+        app.kubernetes.io/name: bot-site
+        app.kubernetes.io/part-of: hanzo-platform
+    spec:
+      imagePullSecrets:
+        - name: ghcr-secret
+      containers:
+        - name: bot-site
+          image: ghcr.io/hanzoai/bot-site:latest
+          ports:
+            - name: http
+              containerPort: 80
+              protocol: TCP
+          envFrom:
+            - secretRef:
+                name: bot-secrets
+                optional: true
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 80
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 80
+            initialDelaySeconds: 3
+            periodSeconds: 5
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              cpu: 100m
+              memory: 64Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: bot-site
+  namespace: hanzo
+  labels:
+    app: bot-site
+    app.kubernetes.io/name: bot-site
+    app.kubernetes.io/part-of: hanzo-platform
+spec:
+  type: ClusterIP
+  ports:
+    - port: 80
+      targetPort: 80
+      protocol: TCP
+      name: http
+  selector:
+    app: bot-site
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: bot-site
+  namespace: hanzo
+  labels:
+    app: bot-site
+    app.kubernetes.io/name: bot-site
+    app.kubernetes.io/part-of: hanzo-platform
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - hanzo.bot
+      secretName: hanzo-bot-tls
+    - hosts:
+        - skills.hanzo.bot
+      secretName: skills-hanzo-bot-tls
+    - hosts:
+        - app.hanzo.bot
+      secretName: app-hanzo-bot-tls
+  rules:
+    - host: hanzo.bot
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: bot-site
+                port:
+                  number: 80
+    - host: skills.hanzo.bot
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: bot-site
+                port:
+                  number: 80
+    - host: app.hanzo.bot
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: bot-site
+                port:
+                  number: 80

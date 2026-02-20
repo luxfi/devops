@@ -101,10 +101,13 @@ startupGate:
   checkIntervalSeconds: 5
 
 # Seed/snapshot restore configuration
+# Snapshots are stored in MinIO at minio.hanzo.svc.cluster.local:9000/lux-snapshots/
+# Format: tar.gz containing db/, chainData/, genesis.bytes
 seedRestore:
   enabled: false
   # sourceType: None | ObjectStore | PVCClone | VolumeSnapshot
   sourceType: None
+  # URL to download snapshot from (supports .tar.gz, .tar.zst, .tar)
   objectStoreUrl: ""
   markerPath: "/data/.seeded"
 

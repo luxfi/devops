@@ -1,0 +1,95 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: blockscout-visualizer-{{ .Values.network }}
+  namespace: lux-explorer
+  labels:
+    app: blockscout-visualizer
+    network: {{ .Values.network }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: blockscout-visualizer
+      network: {{ .Values.network }}
+  template:
+    metadata:
+      labels:
+        app: blockscout-visualizer
+        network: {{ .Values.network }}
+    spec:
+      containers:
+        - name: visualizer
+          image: {{ .Values.images.visualizer }}
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8050
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 256Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: blockscout-visualizer-{{ .Values.network }}
+  namespace: lux-explorer
+spec:
+  type: ClusterIP
+  selector:
+    app: blockscout-visualizer
+    network: {{ .Values.network }}
+  ports:
+    - port: 8050
+      targetPort: 8050
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: blockscout-sig-provider-{{ .Values.network }}
+  namespace: lux-explorer
+  labels:
+    app: blockscout-sig-provider
+    network: {{ .Values.network }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: blockscout-sig-provider
+      network: {{ .Values.network }}
+  template:
+    metadata:
+      labels:
+        app: blockscout-sig-provider
+        network: {{ .Values.network }}
+    spec:
+      containers:
+        - name: sig-provider
+          image: {{ .Values.images.sigProvider }}
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8050
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 256Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: blockscout-sig-provider-{{ .Values.network }}
+  namespace: lux-explorer
+spec:
+  type: ClusterIP
+  selector:
+    app: blockscout-sig-provider
+    network: {{ .Values.network }}
+  ports:
+    - port: 8050
+      targetPort: 8050

@@ -67,12 +67,17 @@ spec:
           if [ ! -f "$SEED_MARKER" ]; then
             echo "[SEED] Starting seed restore..."
             {{- if eq .Values.seedRestore.sourceType "ObjectStore" }}
-            echo "[SEED] Downloading snapshot from {{ .Values.seedRestore.objectStoreUrl }}..."
-            curl -fL --retry 5 --retry-delay 5 -o /tmp/snapshot.tar.zst "{{ .Values.seedRestore.objectStoreUrl }}" && \
+            SNAP_URL="{{ .Values.seedRestore.objectStoreUrl }}"
+            echo "[SEED] Downloading snapshot from $SNAP_URL..."
+            curl -fL --retry 5 --retry-delay 5 -o /tmp/snapshot.archive "$SNAP_URL" && \
             echo "[SEED] Extracting snapshot..." && \
-            (zstd -d /tmp/snapshot.tar.zst -o /tmp/snapshot.tar 2>/dev/null || cp /tmp/snapshot.tar.zst /tmp/snapshot.tar) && \
-            tar xf /tmp/snapshot.tar -C /data && \
-            rm -f /tmp/snapshot.tar /tmp/snapshot.tar.zst && \
+            case "$SNAP_URL" in
+              *.tar.gz|*.tgz)  tar xzf /tmp/snapshot.archive -C /data ;;
+              *.tar.zst)       zstd -d /tmp/snapshot.archive -o /tmp/snapshot.tar && tar xf /tmp/snapshot.tar -C /data && rm -f /tmp/snapshot.tar ;;
+              *.tar)           tar xf /tmp/snapshot.archive -C /data ;;
+              *)               tar xzf /tmp/snapshot.archive -C /data 2>/dev/null || tar xf /tmp/snapshot.archive -C /data ;;
+            esac && \
+            rm -f /tmp/snapshot.archive && \
             touch "$SEED_MARKER" && \
             echo "[SEED] Restore complete" || echo "[SEED] Restore failed"
             {{- else if or (eq .Values.seedRestore.sourceType "PVCClone") (eq .Values.seedRestore.sourceType "VolumeSnapshot") }}

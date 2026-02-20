@@ -1,0 +1,60 @@
+# Lux Exchange Helm chart values
+# Deploy with: helm install exchange charts/exchange -n lux-exchange --create-namespace
+
+# Images
+images:
+  exchange: registry.digitalocean.com/hanzo/exchange:latest
+  gateway: registry.digitalocean.com/hanzo/lxd-gateway:latest
+  redis: redis:7-alpine
+
+# Lux Network
+chainId: 96369
+networkName: "Lux"
+
+# RPC endpoint (K8s internal DNS to luxd)
+rpcUrl: "http://luxd-headless.lux-mainnet.svc.cluster.local:9630/ext/bc/C/rpc"
+
+# Public app URL
+appUrl: "https://lux.exchange"
+domain: lux.exchange
+
+# Exchange frontend
+exchange:
+  replicas: 2
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+# lxd-gateway (DEX API backend)
+gateway:
+  replicas: 2
+  resources:
+    requests:
+      cpu: 200m
+      memory: 256Mi
+    limits:
+      cpu: 1
+      memory: 1Gi
+
+# Redis
+redis:
+  enabled: true
+  storage: 5Gi
+  storageClass: do-block-storage
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 250m
+      memory: 256Mi
+
+# Ingress
+ingress:
+  enabled: true
+  className: nginx
+  clusterIssuer: letsencrypt-prod

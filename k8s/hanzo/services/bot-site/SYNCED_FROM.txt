@@ -1,0 +1,5 @@
+Source: /Users/z/work/hanzo/devops/k8s/services/bot-site
+Files:
+- deployment.yaml
+- kms-secrets.yaml
+- kms-secrets-per-org.template.yaml

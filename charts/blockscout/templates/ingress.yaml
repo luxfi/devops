@@ -1,0 +1,41 @@
+{{- if .Values.ingress.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: blockscout-{{ .Values.network }}
+  namespace: lux-explorer
+  annotations:
+    cert-manager.io/cluster-issuer: {{ .Values.ingress.clusterIssuer }}
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/proxy-body-size: "10m"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "120"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "120"
+spec:
+  ingressClassName: {{ .Values.ingress.className }}
+  tls:
+    - hosts:
+        - {{ .Values.frontendDomain }}
+        - {{ .Values.apiDomain }}
+      secretName: blockscout-{{ .Values.network }}-tls
+  rules:
+    - host: {{ .Values.frontendDomain }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: blockscout-frontend-{{ .Values.network }}
+                port:
+                  number: 3000
+    - host: {{ .Values.apiDomain }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: blockscout-backend-{{ .Values.network }}
+                port:
+                  number: 4000
+{{- end }}

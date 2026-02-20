@@ -3,6 +3,9 @@ network: testnet
 
 replicas: 5
 
+image:
+  tag: luxd-v1.23.15-debug
+
 bootstrap:
   useHostnames: true
   nodeIDs:
@@ -11,24 +14,24 @@ bootstrap:
     - NodeID-Ld9VFBQ9zGbd79z2vzaAqkQ3jHuqbtRpo
     - NodeID-8mY2fhUehN27v3LCU84BnnKEoeRfd2weC
     - NodeID-4smuFz5Z9cm8BEyQU1oPQ9nwgXyMgaNqu
-  # C-Chain RLP import (219 blocks from canonical genesis)
+  # Legacy RLP import disabled (C-chain genesis changed after CancunTime re-genesis)
   rlpImport:
-    enabled: true
-    baseUrl: "https://raw.githubusercontent.com/luxfi/state/main/rlp/lux-testnet"
-    rlpFilename: "lux-testnet-96368.rlp"
-    multiPart: false
-    parts: []
-    minHeight: 200
-    timeout: 600
+    enabled: false
 
 initMode:
   clearData: false
+
+# Snapshot restore from MinIO (internal K8s network)
+seedRestore:
+  enabled: true
+  sourceType: ObjectStore
+  objectStoreUrl: "http://minio.hanzo.svc.cluster.local:9000/lux-snapshots/testnet/testnet-node0-full.tar.gz"
 
 # Testnet requires sybil protection
 consensus:
   sybilProtectionEnabled: true
 
-# Testnet tracks all chains automatically
+# Testnet tracks all chains
 chainTracking:
   trackAllChains: true
   trackedChains: []
@@ -38,11 +41,15 @@ chainTracking:
     - spc
     - pars
 
-# EVM chain configs for C + deployed subnet chains (by blockchain ID)
+# EVM chain configs for C + deployed subnet chains (current blockchain IDs)
 chainConfigs:
   enabled: true
   blockchainIDs:
-    - "2HejgoXvUEDYUYoJLUhQYYadtDSE5qpBLTJKxzYr1AcvkRT9fE"  # Zoo
-    - "2gUYrds3GEira6a1KxzPxSHJx2rY48hLEtpcWXm7JFJ81WiKJg"  # Hanzo (36964)
-    - "eoMnXFewgFM22caQi35FU4i4hyFdLrPFwNVT54yFzc2WPGnNY"   # SPC
-    - "o5eQ7MhcM1K4CqFXRdseNQm9xnyVLKFxsdjHAq8v7UJbXU9rw"  # Pars (494950)
+    - "25mkjr4EYS5ozjFLAvGRNg3DKgdXVwo3HXKYiXiCBC1yTLB4Qn"  # Zoo
+    - "2Yhk4nZZsbjxw6dQQy4FZ2aoc5vX747fGGm2Z34u9FUxrGF6ua"  # Hanzo
+    - "mDSNZLmYn4YHNzXccJoR8TTkCdx7mq3fnvQmgZjwiG7eTFtec"   # SPC
+    - "na24n4hwGDtQkuaWLY5qtkhtVij8dLYpyDNuisieqPvmd3CLY"    # Pars
+
+# Genesis configmap
+genesis:
+  configMapName: luxd-genesis

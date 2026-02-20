@@ -15,5 +15,36 @@ spec:
   consensus:
     sybilProtectionEnabled: false
 
+  staking:
+    secretName: luxd-staking
+    kms:
+      hostApi: https://kms.lux.network/api
+      projectSlug: lux-infra
+      envSlug: devnet
+      secretsPath: /staking
+      resyncInterval: 300
+      auth:
+        credentialsSecret: universal-auth-credentials
+        credentialsNamespace: lux-system
+
+  # Seed restore from MinIO snapshot
+  seedRestore:
+    enabled: true
+    sourceType: ObjectStore
+    objectStoreUrl: "http://minio.hanzo.svc.cluster.local:9000/lux-snapshots/devnet/devnet-node0-full.tar.gz"
+
+  # Automated snapshot schedule (hourly to MinIO)
+  snapshotSchedule:
+    enabled: true
+    intervalSeconds: 3600
+    objectStoreEndpoint: "http://minio.hanzo.svc.cluster.local:9000"
+    bucket: lux-snapshots
+    prefix: devnet
+    accessKey: hanzo
+    secretKeyRef: hanzo-minio-secret
+    sourceNodeIndex: 0
+    includeRlpExports: true
+    maxRetained: 5
+
   chainTracking:
     trackAllChains: true

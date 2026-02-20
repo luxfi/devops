@@ -1,0 +1,152 @@
+# LuxIndexer CRs for mainnet (5 chains)
+# Namespace: lux-mainnet
+# NetworkRef: luxd (the LuxNetwork CR in lux-mainnet)
+---
+apiVersion: lux.network/v1alpha1
+kind: LuxIndexer
+metadata:
+  name: indexer-c
+  namespace: lux-mainnet
+  labels:
+    app.kubernetes.io/part-of: lux-network
+    lux.network/network: mainnet
+    lux.network/chain: c-chain
+spec:
+  networkRef: luxd
+  chainAlias: "C"
+  chainId: 96369
+  image:
+    repository: registry.digitalocean.com/hanzo/lux-indexer
+    tag: v0.1.0
+  database:
+    managed: true
+    storageSize: "20Gi"
+    storageClass: do-block-storage
+  port: 4000
+  replicas: 1
+  traceEnabled: true
+  contractVerification: true
+  pollInterval: 2
+  storage:
+    size: "10Gi"
+    storageClass: do-block-storage
+---
+apiVersion: lux.network/v1alpha1
+kind: LuxIndexer
+metadata:
+  name: indexer-zoo
+  namespace: lux-mainnet
+  labels:
+    app.kubernetes.io/part-of: lux-network
+    lux.network/network: mainnet
+    lux.network/chain: zoo
+spec:
+  networkRef: luxd
+  chainAlias: "zoo"
+  chainId: 200200
+  blockchainId: "26QT4oQvjup5vhH5ifmwisH9MTeHquWgJDZC9GvynLthhVCDh9"
+  image:
+    repository: registry.digitalocean.com/hanzo/lux-indexer
+    tag: v0.1.0
+  database:
+    managed: true
+    storageSize: "20Gi"
+    storageClass: do-block-storage
+  port: 4000
+  replicas: 1
+  traceEnabled: true
+  contractVerification: true
+  pollInterval: 2
+  storage:
+    size: "10Gi"
+    storageClass: do-block-storage
+---
+apiVersion: lux.network/v1alpha1
+kind: LuxIndexer
+metadata:
+  name: indexer-hanzo
+  namespace: lux-mainnet
+  labels:
+    app.kubernetes.io/part-of: lux-network
+    lux.network/network: mainnet
+    lux.network/chain: hanzo
+spec:
+  networkRef: luxd
+  chainAlias: "hanzo"
+  chainId: 36963
+  blockchainId: "U846mKHnTq7KcVV3HFbXn2CnEDgPRiXDZBpFnnFkjiQGFjbhG"
+  image:
+    repository: registry.digitalocean.com/hanzo/lux-indexer
+    tag: v0.1.0
+  database:
+    managed: true
+    storageSize: "20Gi"
+    storageClass: do-block-storage
+  port: 4000
+  replicas: 1
+  traceEnabled: true
+  contractVerification: true
+  pollInterval: 2
+  storage:
+    size: "10Gi"
+    storageClass: do-block-storage
+---
+apiVersion: lux.network/v1alpha1
+kind: LuxIndexer
+metadata:
+  name: indexer-spc
+  namespace: lux-mainnet
+  labels:
+    app.kubernetes.io/part-of: lux-network
+    lux.network/network: mainnet
+    lux.network/chain: spc
+spec:
+  networkRef: luxd
+  chainAlias: "spc"
+  chainId: 36911
+  blockchainId: "2UiqUeusJ3QJenHfXbJvoz9m2BL3sd14hrohaX1HfxtRnadMob"
+  image:
+    repository: registry.digitalocean.com/hanzo/lux-indexer
+    tag: v0.1.0
+  database:
+    managed: true
+    storageSize: "20Gi"
+    storageClass: do-block-storage
+  port: 4000
+  replicas: 1
+  traceEnabled: true
+  contractVerification: true
+  pollInterval: 2
+  storage:
+    size: "10Gi"
+    storageClass: do-block-storage
+---
+apiVersion: lux.network/v1alpha1
+kind: LuxIndexer
+metadata:
+  name: indexer-pars
+  namespace: lux-mainnet
+  labels:
+    app.kubernetes.io/part-of: lux-network
+    lux.network/network: mainnet
+    lux.network/chain: pars
+spec:
+  networkRef: luxd
+  chainAlias: "pars"
+  chainId: 36900
+  blockchainId: "2ntyMHLYEeoaK2RePDJbFsKGQBsKFgZTWEWNCdkD74bfGEZtLF"
+  image:
+    repository: registry.digitalocean.com/hanzo/lux-indexer
+    tag: v0.1.0
+  database:
+    managed: true
+    storageSize: "20Gi"
+    storageClass: do-block-storage
+  port: 4000
+  replicas: 1
+  traceEnabled: true
+  contractVerification: true
+  pollInterval: 2
+  storage:
+    size: "10Gi"
+    storageClass: do-block-storage

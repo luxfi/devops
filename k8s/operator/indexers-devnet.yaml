@@ -1,0 +1,150 @@
+# LuxIndexer CRs for devnet - all 5 chains
+---
+apiVersion: lux.network/v1alpha1
+kind: LuxIndexer
+metadata:
+  name: indexer-c
+  namespace: lux-devnet
+  labels:
+    app.kubernetes.io/part-of: lux-network
+    lux.network/chain: c-chain
+    lux.network/network: devnet
+spec:
+  networkRef: luxd
+  chainAlias: C
+  chainId: 96370
+  replicas: 1
+  port: 4000
+  pollInterval: 2
+  traceEnabled: true
+  contractVerification: true
+  image:
+    repository: registry.digitalocean.com/hanzo/lux-indexer
+    tag: v0.1.0
+  database:
+    managed: true
+    storageClass: do-block-storage
+    storageSize: 20Gi
+  storage:
+    size: 10Gi
+    storageClass: do-block-storage
+---
+apiVersion: lux.network/v1alpha1
+kind: LuxIndexer
+metadata:
+  name: indexer-zoo
+  namespace: lux-devnet
+  labels:
+    app.kubernetes.io/part-of: lux-network
+    lux.network/chain: zoo
+    lux.network/network: devnet
+spec:
+  networkRef: luxd
+  chainAlias: zoo
+  chainId: 200202
+  blockchainId: VUPpSeQjZuGZtBoty7xc9HnnkuzAp8oZQ6UQHKiZcVUe7R6h1
+  replicas: 1
+  port: 4000
+  pollInterval: 2
+  traceEnabled: true
+  contractVerification: true
+  image:
+    repository: registry.digitalocean.com/hanzo/lux-indexer
+    tag: v0.1.0
+  database:
+    managed: true
+    storageClass: do-block-storage
+    storageSize: 20Gi
+  storage:
+    size: 10Gi
+    storageClass: do-block-storage
+---
+apiVersion: lux.network/v1alpha1
+kind: LuxIndexer
+metadata:
+  name: indexer-hanzo
+  namespace: lux-devnet
+  labels:
+    app.kubernetes.io/part-of: lux-network
+    lux.network/chain: hanzo
+    lux.network/network: devnet
+spec:
+  networkRef: luxd
+  chainAlias: hanzo
+  chainId: 36964
+  blockchainId: 2Ww4cgRjjNcu6CFY3KFktr3A9n6XgxPqVeonJ1WfaU7JbLVrJN
+  replicas: 1
+  port: 4000
+  pollInterval: 2
+  traceEnabled: true
+  contractVerification: true
+  image:
+    repository: registry.digitalocean.com/hanzo/lux-indexer
+    tag: v0.1.0
+  database:
+    managed: true
+    storageClass: do-block-storage
+    storageSize: 20Gi
+  storage:
+    size: 10Gi
+    storageClass: do-block-storage
+---
+apiVersion: lux.network/v1alpha1
+kind: LuxIndexer
+metadata:
+  name: indexer-spc
+  namespace: lux-devnet
+  labels:
+    app.kubernetes.io/part-of: lux-network
+    lux.network/chain: spc
+    lux.network/network: devnet
+spec:
+  networkRef: luxd
+  chainAlias: spc
+  chainId: 36912
+  blockchainId: 2uLU64aZ2MEQ4sVSRGJ4Yvj8hSEwFbDgnP8hfVHzLyV6ow2ZJa
+  replicas: 1
+  port: 4000
+  pollInterval: 2
+  traceEnabled: true
+  contractVerification: true
+  image:
+    repository: registry.digitalocean.com/hanzo/lux-indexer
+    tag: v0.1.0
+  database:
+    managed: true
+    storageClass: do-block-storage
+    storageSize: 20Gi
+  storage:
+    size: 10Gi
+    storageClass: do-block-storage
+---
+apiVersion: lux.network/v1alpha1
+kind: LuxIndexer
+metadata:
+  name: indexer-pars
+  namespace: lux-devnet
+  labels:
+    app.kubernetes.io/part-of: lux-network
+    lux.network/chain: pars
+    lux.network/network: devnet
+spec:
+  networkRef: luxd
+  chainAlias: pars
+  chainId: 36914
+  blockchainId: 2uphCgXXc246y3uGCXQwgA7j2bCnxFD1uVL2Sg2vXVzVkcbF8D
+  replicas: 1
+  port: 4000
+  pollInterval: 2
+  traceEnabled: true
+  contractVerification: true
+  image:
+    repository: registry.digitalocean.com/hanzo/lux-indexer
+    tag: v0.1.0
+  database:
+    managed: true
+    storageClass: do-block-storage
+    storageSize: 20Gi
+  storage:
+    size: 10Gi
+    storageClass: do-block-storage

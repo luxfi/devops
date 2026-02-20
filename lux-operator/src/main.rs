@@ -110,8 +110,14 @@ async fn main() -> anyhow::Result<()> {
     // Run controllers + servers concurrently
     let network_client = client.clone();
     let chain_client = client.clone();
+    let indexer_client = client.clone();
+    let explorer_client = client.clone();
+    let gateway_client = client.clone();
     let network_ns = args.namespace.clone();
     let chain_ns = args.namespace.clone();
+    let indexer_ns = args.namespace.clone();
+    let explorer_ns = args.namespace.clone();
+    let gateway_ns = args.namespace.clone();
     let mpc_endpoint = args.mpc_endpoint.clone();
 
     tokio::select! {
@@ -123,6 +129,21 @@ async fn main() -> anyhow::Result<()> {
         res = controller::run_chain_controller(chain_client, chain_ns) => {
             if let Err(e) = res {
                 tracing::error!("Chain controller exited with error: {:?}", e);
+            }
+        }
+        res = controller::run_indexer_controller(indexer_client, indexer_ns) => {
+            if let Err(e) = res {
+                tracing::error!("Indexer controller exited with error: {:?}", e);
+            }
+        }
+        res = controller::run_explorer_controller(explorer_client, explorer_ns) => {
+            if let Err(e) = res {
+                tracing::error!("Explorer controller exited with error: {:?}", e);
+            }
+        }
+        res = controller::run_gateway_controller(gateway_client, gateway_ns) => {
+            if let Err(e) = res {
+                tracing::error!("Gateway controller exited with error: {:?}", e);
             }
         }
         res = axum::serve(

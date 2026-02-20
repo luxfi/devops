@@ -156,6 +156,10 @@ pub struct LuxNetworkSpec {
     #[serde(default)]
     pub seed_restore: SeedRestoreSpec,
 
+    /// Automated snapshot schedule configuration
+    #[serde(default)]
+    pub snapshot_schedule: SnapshotScheduleSpec,
+
     /// Startup gating: wait for peers before starting luxd
     #[serde(default)]
     pub startup_gate: StartupGateSpec,
@@ -552,8 +556,65 @@ fn default_staking_port() -> i32 {
 #[derive(Deserialize, Serialize, Clone, Debug, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct StakingSpec {
-    /// Secret name containing staking keys (staker-{idx}.crt, staker-{idx}.key, signer-{idx}.key)
+    /// Secret name containing staking keys (staker-{idx}.crt, staker-{idx}.key, signer-{idx}.key).
+    /// When using KMS, this is the target secret name that KMS will sync into.
     pub secret_name: String,
+
+    /// KMS configuration for syncing staking keys from Hanzo KMS.
+    /// When set, the operator creates a KMSSecret resource that syncs
+    /// staking keys from KMS into the K8s Secret named by secret_name.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub kms: Option<KmsStakingSpec>,
+}
+
+/// KMS-backed staking key management via Hanzo KMS (secrets.lux.network/v1alpha1 KMSSecret)
+#[derive(Deserialize, Serialize, Clone, Debug, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct KmsStakingSpec {
+    /// KMS API endpoint (e.g., "https://kms.lux.network/api")
+    #[serde(default = "default_kms_host")]
+    pub host_api: String,
+
+    /// KMS project slug (e.g., "lux-infra")
+    pub project_slug: String,
+
+    /// KMS environment slug (e.g., "mainnet", "testnet", "devnet")
+    pub env_slug: String,
+
+    /// Path within the KMS project for staking secrets (e.g., "/staking")
+    #[serde(default = "default_kms_staking_path")]
+    pub secrets_path: String,
+
+    /// Authentication configuration for KMS
+    pub auth: KmsAuthSpec,
+
+    /// Resync interval in seconds (how often to re-fetch from KMS)
+    #[serde(default = "default_kms_resync")]
+    pub resync_interval: u64,
+}
+
+/// KMS authentication configuration
+#[derive(Deserialize, Serialize, Clone, Debug, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct KmsAuthSpec {
+    /// Secret name containing KMS credentials (clientId, clientSecret)
+    pub credentials_secret: String,
+
+    /// Namespace of the credentials secret (defaults to operator namespace)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub credentials_namespace: Option<String>,
+}
+
+fn default_kms_host() -> String {
+    "https://kms.lux.network/api".to_string()
+}
+
+fn default_kms_staking_path() -> String {
+    "/staking".to_string()
+}
+
+fn default_kms_resync() -> u64 {
+    300
 }
 
 /// Init container configuration
@@ -807,6 +868,79 @@ pub struct SnapshotSpec {
     pub skip_if_exists: bool,
 }
 
+/// Automated snapshot schedule for backup and fast bootstrap
+#[derive(Deserialize, Serialize, Clone, Debug, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct SnapshotScheduleSpec {
+    /// Enable periodic snapshot creation
+    #[serde(default)]
+    pub enabled: bool,
+
+    /// Snapshot interval in seconds (default: 3600 = 1 hour)
+    #[serde(default = "default_snapshot_interval")]
+    pub interval_seconds: u64,
+
+    /// MinIO/S3 endpoint for snapshot upload (e.g., "http://minio.hanzo.svc.cluster.local:9000")
+    pub object_store_endpoint: String,
+
+    /// Bucket name for snapshots
+    #[serde(default = "default_snapshot_bucket")]
+    pub bucket: String,
+
+    /// Prefix path within bucket (e.g., "mainnet/")
+    #[serde(default)]
+    pub prefix: String,
+
+    /// Access key for object store
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub access_key: Option<String>,
+
+    /// Secret key for object store (reference to K8s secret)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub secret_key_ref: Option<String>,
+
+    /// Which node index to snapshot from (default: 0)
+    #[serde(default)]
+    pub source_node_index: u32,
+
+    /// Include RLP exports for each chain in the snapshot
+    #[serde(default = "default_true")]
+    pub include_rlp_exports: bool,
+
+    /// Maximum snapshots to retain (older ones are deleted)
+    #[serde(default = "default_max_snapshots")]
+    pub max_retained: u32,
+}
+
+impl Default for SnapshotScheduleSpec {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            interval_seconds: default_snapshot_interval(),
+            object_store_endpoint: String::new(),
+            bucket: default_snapshot_bucket(),
+            prefix: String::new(),
+            access_key: None,
+            secret_key_ref: None,
+            source_node_index: 0,
+            include_rlp_exports: true,
+            max_retained: default_max_snapshots(),
+        }
+    }
+}
+
+fn default_snapshot_interval() -> u64 {
+    3600
+}
+
+fn default_snapshot_bucket() -> String {
+    "lux-snapshots".to_string()
+}
+
+fn default_max_snapshots() -> u32 {
+    5
+}
+
 /// RLP import configuration for C-chain block data
 #[derive(Deserialize, Serialize, Clone, Debug, JsonSchema)]
 #[serde(rename_all = "camelCase")]
@@ -893,6 +1027,22 @@ pub struct LuxNetworkStatus {
     /// Network-wide metrics
     #[serde(skip_serializing_if = "Option::is_none")]
     pub network_metrics: Option<NetworkMetrics>,
+
+    /// Last snapshot timestamp (RFC3339)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub last_snapshot_time: Option<String>,
+
+    /// Last snapshot URL (in object store)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub last_snapshot_url: Option<String>,
+
+    /// Last snapshot version (from admin.snapshot)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub last_snapshot_version: Option<u64>,
+
+    /// Number of snapshots stored
+    #[serde(default)]
+    pub snapshot_count: u32,
 
     /// Conditions
     #[serde(default)]
@@ -1018,6 +1168,619 @@ pub struct ChainStatus {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub block_height: Option<u64>,
 }
+
+// ---------------------------------------------------------------------------
+// LuxIndexer CRD
+// ---------------------------------------------------------------------------
+
+/// LuxIndexer deploys blockchain indexer instances for EVM chains.
+/// Each indexer tracks one chain (C-chain or subnet) and exposes REST/WS/GraphQL APIs.
+#[derive(CustomResource, Deserialize, Serialize, Clone, Debug, JsonSchema)]
+#[kube(
+    group = "lux.network",
+    version = "v1alpha1",
+    kind = "LuxIndexer",
+    namespaced,
+    status = "LuxIndexerStatus",
+    shortname = "luxidx",
+    printcolumn = r#"{"name":"Phase","type":"string","jsonPath":".status.phase"}"#,
+    printcolumn = r#"{"name":"Chain","type":"string","jsonPath":".spec.chainAlias"}"#,
+    printcolumn = r#"{"name":"Height","type":"integer","jsonPath":".status.indexedHeight"}"#,
+    printcolumn = r#"{"name":"Age","type":"date","jsonPath":".metadata.creationTimestamp"}"#
+)]
+#[serde(rename_all = "camelCase")]
+pub struct LuxIndexerSpec {
+    /// Reference to parent LuxNetwork name (same namespace)
+    pub network_ref: String,
+
+    /// Chain alias being indexed (e.g., "C", "zoo", "hanzo", "spc", "pars")
+    pub chain_alias: String,
+
+    /// EVM chain ID
+    pub chain_id: u64,
+
+    /// Blockchain ID (for subnet chains; empty for C-chain)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub blockchain_id: Option<String>,
+
+    /// Indexer image configuration
+    #[serde(default = "default_indexer_image")]
+    pub image: IndexerImageSpec,
+
+    /// RPC endpoint override (default: auto-discovered from LuxNetwork)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub rpc_endpoint: Option<String>,
+
+    /// WebSocket endpoint override
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ws_endpoint: Option<String>,
+
+    /// Database configuration
+    #[serde(default)]
+    pub database: IndexerDatabaseSpec,
+
+    /// HTTP API port
+    #[serde(default = "default_indexer_port")]
+    pub port: i32,
+
+    /// Number of indexer replicas (read replicas, only 1 writer)
+    #[serde(default = "default_one")]
+    pub replicas: i32,
+
+    /// Resource requirements
+    #[serde(default)]
+    pub resources: ResourceSpec,
+
+    /// Enable DeFi protocol indexing (AMM, lending, staking)
+    #[serde(default)]
+    pub defi_indexing: bool,
+
+    /// Enable NFT indexing
+    #[serde(default)]
+    pub nft_indexing: bool,
+
+    /// Enable contract verification
+    #[serde(default = "default_true")]
+    pub contract_verification: bool,
+
+    /// Enable internal transaction tracing
+    #[serde(default = "default_true")]
+    pub trace_enabled: bool,
+
+    /// Poll interval in seconds for new blocks
+    #[serde(default = "default_poll_interval")]
+    pub poll_interval: u64,
+
+    /// Indexer storage for KV layer (BadgerDB)
+    #[serde(default)]
+    pub storage: IndexerStorageSpec,
+}
+
+/// Indexer image configuration
+#[derive(Deserialize, Serialize, Clone, Debug, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct IndexerImageSpec {
+    pub repository: String,
+    pub tag: String,
+    #[serde(default = "default_pull_policy")]
+    pub pull_policy: String,
+}
+
+impl Default for IndexerImageSpec {
+    fn default() -> Self {
+        default_indexer_image()
+    }
+}
+
+fn default_indexer_image() -> IndexerImageSpec {
+    IndexerImageSpec {
+        repository: "registry.digitalocean.com/hanzo/lux-indexer".to_string(),
+        tag: "latest".to_string(),
+        pull_policy: "IfNotPresent".to_string(),
+    }
+}
+
+fn default_indexer_port() -> i32 {
+    4000
+}
+
+fn default_one() -> i32 {
+    1
+}
+
+fn default_poll_interval() -> u64 {
+    2
+}
+
+/// Indexer database configuration
+#[derive(Deserialize, Serialize, Clone, Debug, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct IndexerDatabaseSpec {
+    /// Deploy a PostgreSQL StatefulSet for this indexer (true) or use external DB (false)
+    #[serde(default = "default_true")]
+    pub managed: bool,
+
+    /// External database URL (when managed=false)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub url: Option<String>,
+
+    /// Database name (auto-generated from chain alias if not set)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
+
+    /// PostgreSQL image
+    #[serde(default = "default_pg_image")]
+    pub image: String,
+
+    /// Storage size for managed PostgreSQL PVC
+    #[serde(default = "default_pg_storage")]
+    pub storage_size: String,
+
+    /// Storage class for managed PostgreSQL
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub storage_class: Option<String>,
+}
+
+impl Default for IndexerDatabaseSpec {
+    fn default() -> Self {
+        Self {
+            managed: true,
+            url: None,
+            name: None,
+            image: default_pg_image(),
+            storage_size: default_pg_storage(),
+            storage_class: None,
+        }
+    }
+}
+
+fn default_pg_image() -> String {
+    "postgres:16-alpine".to_string()
+}
+
+fn default_pg_storage() -> String {
+    "20Gi".to_string()
+}
+
+/// Indexer KV storage configuration (BadgerDB)
+#[derive(Deserialize, Serialize, Clone, Debug, Default, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct IndexerStorageSpec {
+    /// Storage size for indexer KV data PVC
+    #[serde(default = "default_indexer_storage")]
+    pub size: String,
+
+    /// Storage class
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub storage_class: Option<String>,
+}
+
+fn default_indexer_storage() -> String {
+    "10Gi".to_string()
+}
+
+/// Status of a LuxIndexer
+#[derive(Deserialize, Serialize, Clone, Debug, Default, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct LuxIndexerStatus {
+    /// Current phase: Pending, Creating, Syncing, Ready, Error
+    #[serde(default)]
+    pub phase: String,
+
+    /// Current indexed block height
+    #[serde(default)]
+    pub indexed_height: u64,
+
+    /// Chain tip height (from RPC)
+    #[serde(default)]
+    pub chain_height: u64,
+
+    /// Sync progress percentage (0-100)
+    #[serde(default)]
+    pub sync_progress: u32,
+
+    /// API endpoint URL (ClusterIP service)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub api_endpoint: Option<String>,
+
+    /// Database connection status
+    #[serde(default)]
+    pub database_ready: bool,
+
+    /// Conditions
+    #[serde(default)]
+    #[schemars(skip)]
+    pub conditions: Vec<Condition>,
+}
+
+// ---------------------------------------------------------------------------
+// LuxExplorer CRD
+// ---------------------------------------------------------------------------
+
+/// LuxExplorer deploys a blockchain explorer web UI for one or more chains.
+/// It connects to LuxIndexer instances for data.
+#[derive(CustomResource, Deserialize, Serialize, Clone, Debug, JsonSchema)]
+#[kube(
+    group = "lux.network",
+    version = "v1alpha1",
+    kind = "LuxExplorer",
+    namespaced,
+    status = "LuxExplorerStatus",
+    shortname = "luxexp",
+    printcolumn = r#"{"name":"Phase","type":"string","jsonPath":".status.phase"}"#,
+    printcolumn = r#"{"name":"URL","type":"string","jsonPath":".status.url"}"#,
+    printcolumn = r#"{"name":"Age","type":"date","jsonPath":".metadata.creationTimestamp"}"#
+)]
+#[serde(rename_all = "camelCase")]
+pub struct LuxExplorerSpec {
+    /// Reference to parent LuxNetwork name (same namespace)
+    pub network_ref: String,
+
+    /// Explorer image configuration
+    #[serde(default = "default_explorer_image")]
+    pub image: ExplorerImageSpec,
+
+    /// Chains to display in this explorer (references to LuxIndexer names)
+    pub indexer_refs: Vec<ExplorerChainRef>,
+
+    /// Number of replicas
+    #[serde(default = "default_explorer_replicas")]
+    pub replicas: i32,
+
+    /// HTTP port
+    #[serde(default = "default_explorer_port")]
+    pub port: i32,
+
+    /// Resource requirements
+    #[serde(default)]
+    pub resources: ResourceSpec,
+
+    /// Ingress configuration
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ingress: Option<ExplorerIngressSpec>,
+
+    /// Custom branding
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub branding: Option<ExplorerBrandingSpec>,
+}
+
+/// Reference to an indexer for explorer
+#[derive(Deserialize, Serialize, Clone, Debug, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct ExplorerChainRef {
+    /// LuxIndexer CR name (same namespace)
+    pub indexer_name: String,
+    /// Display name in the explorer UI
+    pub display_name: String,
+    /// Chain color (hex, for UI)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub color: Option<String>,
+    /// Whether this is the default chain shown
+    #[serde(default)]
+    pub default: bool,
+}
+
+/// Explorer image configuration
+#[derive(Deserialize, Serialize, Clone, Debug, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct ExplorerImageSpec {
+    pub repository: String,
+    pub tag: String,
+    #[serde(default = "default_pull_policy")]
+    pub pull_policy: String,
+}
+
+impl Default for ExplorerImageSpec {
+    fn default() -> Self {
+        default_explorer_image()
+    }
+}
+
+fn default_explorer_image() -> ExplorerImageSpec {
+    ExplorerImageSpec {
+        repository: "ghcr.io/blockscout/frontend".to_string(),
+        tag: "latest".to_string(),
+        pull_policy: "IfNotPresent".to_string(),
+    }
+}
+
+fn default_explorer_replicas() -> i32 {
+    2
+}
+
+fn default_explorer_port() -> i32 {
+    3000
+}
+
+/// Explorer ingress configuration
+#[derive(Deserialize, Serialize, Clone, Debug, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct ExplorerIngressSpec {
+    /// Hostname for the explorer (e.g., "explorer.lux.network")
+    pub host: String,
+    /// TLS secret name (for HTTPS)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tls_secret: Option<String>,
+    /// Ingress class (e.g., "nginx")
+    #[serde(default = "default_ingress_class")]
+    pub ingress_class: String,
+    /// Additional annotations
+    #[serde(default)]
+    pub annotations: BTreeMap<String, String>,
+}
+
+fn default_ingress_class() -> String {
+    "nginx".to_string()
+}
+
+/// Explorer branding configuration
+#[derive(Deserialize, Serialize, Clone, Debug, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct ExplorerBrandingSpec {
+    /// Network name displayed in UI
+    pub network_name: String,
+    /// Logo URL
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub logo_url: Option<String>,
+    /// Primary color (hex)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub primary_color: Option<String>,
+}
+
+/// Status of a LuxExplorer
+#[derive(Deserialize, Serialize, Clone, Debug, Default, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct LuxExplorerStatus {
+    /// Current phase: Pending, Creating, Ready, Error
+    #[serde(default)]
+    pub phase: String,
+
+    /// Public URL (from ingress or LB)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub url: Option<String>,
+
+    /// Ready replicas
+    #[serde(default)]
+    pub ready_replicas: i32,
+
+    /// Connected indexers (by name) and their sync status
+    #[serde(default)]
+    pub indexer_statuses: BTreeMap<String, bool>,
+
+    /// Conditions
+    #[serde(default)]
+    #[schemars(skip)]
+    pub conditions: Vec<Condition>,
+}
+
+// ---------------------------------------------------------------------------
+// LuxGateway CRD
+// ---------------------------------------------------------------------------
+
+/// LuxGateway manages an API gateway (KrakenD) for routing external traffic
+/// to blockchain RPC, indexer APIs, and explorer UIs.
+#[derive(CustomResource, Deserialize, Serialize, Clone, Debug, JsonSchema)]
+#[kube(
+    group = "lux.network",
+    version = "v1alpha1",
+    kind = "LuxGateway",
+    namespaced,
+    status = "LuxGatewayStatus",
+    shortname = "luxgw",
+    printcolumn = r#"{"name":"Phase","type":"string","jsonPath":".status.phase"}"#,
+    printcolumn = r#"{"name":"Host","type":"string","jsonPath":".spec.host"}"#,
+    printcolumn = r#"{"name":"Routes","type":"integer","jsonPath":".status.routeCount"}"#,
+    printcolumn = r#"{"name":"Age","type":"date","jsonPath":".metadata.creationTimestamp"}"#
+)]
+#[serde(rename_all = "camelCase")]
+pub struct LuxGatewaySpec {
+    /// Reference to parent LuxNetwork name (same namespace)
+    pub network_ref: String,
+
+    /// Gateway image
+    #[serde(default = "default_gateway_image")]
+    pub image: GatewayImageSpec,
+
+    /// Primary hostname (e.g., "api.lux.network")
+    pub host: String,
+
+    /// Number of gateway replicas
+    #[serde(default = "default_gateway_replicas")]
+    pub replicas: i32,
+
+    /// HTTP port
+    #[serde(default = "default_gateway_port")]
+    pub port: i32,
+
+    /// Auto-discover and route all chains from the referenced LuxNetwork
+    #[serde(default = "default_true")]
+    pub auto_routes: bool,
+
+    /// Additional custom routes
+    #[serde(default)]
+    pub custom_routes: Vec<GatewayRoute>,
+
+    /// Rate limiting configuration
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub rate_limit: Option<GatewayRateLimitSpec>,
+
+    /// CORS configuration
+    #[serde(default)]
+    pub cors: GatewayCorsSpec,
+
+    /// TLS configuration
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tls: Option<GatewayTlsSpec>,
+
+    /// Resource requirements
+    #[serde(default)]
+    pub resources: ResourceSpec,
+
+    /// Indexer references for API routing (connects indexer APIs to gateway)
+    #[serde(default)]
+    pub indexer_refs: Vec<String>,
+
+    /// Explorer references for UI routing
+    #[serde(default)]
+    pub explorer_refs: Vec<String>,
+}
+
+/// Gateway image configuration
+#[derive(Deserialize, Serialize, Clone, Debug, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct GatewayImageSpec {
+    pub repository: String,
+    pub tag: String,
+    #[serde(default = "default_pull_policy")]
+    pub pull_policy: String,
+}
+
+impl Default for GatewayImageSpec {
+    fn default() -> Self {
+        default_gateway_image()
+    }
+}
+
+fn default_gateway_image() -> GatewayImageSpec {
+    GatewayImageSpec {
+        repository: "devopsfaith/krakend".to_string(),
+        tag: "2.7".to_string(),
+        pull_policy: "IfNotPresent".to_string(),
+    }
+}
+
+fn default_gateway_replicas() -> i32 {
+    2
+}
+
+fn default_gateway_port() -> i32 {
+    8080
+}
+
+/// A custom gateway route
+#[derive(Deserialize, Serialize, Clone, Debug, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct GatewayRoute {
+    /// URL path pattern (e.g., "/ext/bc/C/rpc")
+    pub path: String,
+    /// Backend service URL
+    pub backend: String,
+    /// HTTP methods allowed
+    #[serde(default = "default_methods")]
+    pub methods: Vec<String>,
+    /// Request timeout in seconds
+    #[serde(default = "default_route_timeout")]
+    pub timeout: u64,
+}
+
+fn default_methods() -> Vec<String> {
+    vec!["GET".to_string(), "POST".to_string()]
+}
+
+fn default_route_timeout() -> u64 {
+    30
+}
+
+/// Rate limiting configuration
+#[derive(Deserialize, Serialize, Clone, Debug, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct GatewayRateLimitSpec {
+    /// Requests per second per client IP
+    #[serde(default = "default_rate_limit")]
+    pub requests_per_second: u32,
+    /// Burst size
+    #[serde(default = "default_burst")]
+    pub burst: u32,
+}
+
+fn default_rate_limit() -> u32 {
+    100
+}
+
+fn default_burst() -> u32 {
+    200
+}
+
+/// CORS configuration
+#[derive(Deserialize, Serialize, Clone, Debug, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct GatewayCorsSpec {
+    /// Allowed origins
+    #[serde(default = "default_cors_origins")]
+    pub allowed_origins: Vec<String>,
+    /// Allowed methods
+    #[serde(default = "default_methods")]
+    pub allowed_methods: Vec<String>,
+    /// Allowed headers
+    #[serde(default = "default_cors_headers")]
+    pub allowed_headers: Vec<String>,
+}
+
+impl Default for GatewayCorsSpec {
+    fn default() -> Self {
+        Self {
+            allowed_origins: default_cors_origins(),
+            allowed_methods: default_methods(),
+            allowed_headers: default_cors_headers(),
+        }
+    }
+}
+
+fn default_cors_origins() -> Vec<String> {
+    vec!["*".to_string()]
+}
+
+fn default_cors_headers() -> Vec<String> {
+    vec!["Content-Type".to_string(), "Authorization".to_string()]
+}
+
+/// TLS configuration
+#[derive(Deserialize, Serialize, Clone, Debug, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct GatewayTlsSpec {
+    /// TLS secret name
+    pub secret_name: String,
+    /// Enable automatic cert-manager certificates
+    #[serde(default)]
+    pub cert_manager: bool,
+    /// cert-manager issuer name
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub issuer: Option<String>,
+}
+
+/// Status of a LuxGateway
+#[derive(Deserialize, Serialize, Clone, Debug, Default, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct LuxGatewayStatus {
+    /// Current phase: Pending, Creating, Ready, Error
+    #[serde(default)]
+    pub phase: String,
+
+    /// Number of configured routes
+    #[serde(default)]
+    pub route_count: u32,
+
+    /// External IP or hostname
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub external_endpoint: Option<String>,
+
+    /// Ready replicas
+    #[serde(default)]
+    pub ready_replicas: i32,
+
+    /// Auto-discovered chain routes
+    #[serde(default)]
+    pub chain_routes: BTreeMap<String, String>,
+
+    /// Conditions
+    #[serde(default)]
+    #[schemars(skip)]
+    pub conditions: Vec<Condition>,
+}
+
+// ---------------------------------------------------------------------------
+// LuxChain CRD
+// ---------------------------------------------------------------------------
 
 /// LuxChain CRD for chain deployments
 #[derive(CustomResource, Deserialize, Serialize, Clone, Debug, JsonSchema)]

@@ -4,24 +4,24 @@ metadata:
   name: lux-operator
   namespace: lux-system
   labels:
-    app.kubernetes.io/name: lux-operator
+    app: lux-operator
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app.kubernetes.io/name: lux-operator
+      app: lux-operator
   template:
     metadata:
       labels:
-        app.kubernetes.io/name: lux-operator
+        app: lux-operator
     spec:
       serviceAccountName: lux-operator
       imagePullSecrets:
-        - name: ghcr-secret
+        - name: registry-hanzo
       containers:
-        - name: lux-operator
-          image: ghcr.io/luxfi/operator:v0.2.0
-          imagePullPolicy: IfNotPresent
+        - name: operator
+          image: registry.digitalocean.com/hanzo/lux-operator:v0.3.5
+          imagePullPolicy: Always
           args:
             - --namespace
             - ""
@@ -32,7 +32,6 @@ spec:
             - --health-port
             - "8081"
             - --leader-election
-            - "true"
           ports:
             - name: metrics
               containerPort: 8080
@@ -42,17 +41,17 @@ spec:
             httpGet:
               path: /healthz
               port: 8081
-            initialDelaySeconds: 5
+            initialDelaySeconds: 3
             periodSeconds: 10
-            timeoutSeconds: 2
+            timeoutSeconds: 3
             failureThreshold: 3
           livenessProbe:
             httpGet:
               path: /healthz
               port: 8081
             initialDelaySeconds: 10
-            periodSeconds: 10
-            timeoutSeconds: 2
+            periodSeconds: 30
+            timeoutSeconds: 3
             failureThreshold: 5
           resources:
             requests:

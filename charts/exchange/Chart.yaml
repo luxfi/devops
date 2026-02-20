@@ -1,0 +1,14 @@
+apiVersion: v2
+name: exchange
+description: Lux Exchange DEX frontend and gateway services
+type: application
+version: 1.0.0
+appVersion: "latest"
+keywords:
+  - dex
+  - exchange
+  - lux
+  - defi
+maintainers:
+  - name: Lux Team
+    email: dev@lux.network

@@ -134,7 +134,14 @@ data:
     ARGS="$ARGS --http-allowed-hosts={{ .Values.api.httpAllowedHosts }}"
     ARGS="$ARGS --staking-port={{ $stakingPort }}"
     ARGS="$ARGS --data-dir=/data"
-    ARGS="$ARGS --genesis-file=/genesis/genesis.json"
+    # Use cached genesis.bytes if available (preserves original genesis state),
+    # fall back to ConfigMap JSON for fresh nodes.
+    if [ -f /data/genesis.bytes ]; then
+      echo "[GENESIS] Using cached /data/genesis.bytes (skipping --genesis-file)"
+    else
+      echo "[GENESIS] First boot: using ConfigMap genesis JSON"
+      ARGS="$ARGS --genesis-file=/genesis/genesis.json"
+    fi
     ARGS="$ARGS --db-type={{ .Values.dbType }}"
     {{- if .Values.chainConfigs.enabled }}
     ARGS="$ARGS --chain-config-dir=/data/configs/chains"

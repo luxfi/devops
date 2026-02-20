@@ -1,0 +1,37 @@
+# LuxGateway CR for mainnet
+# Namespace: lux-mainnet
+# Routes traffic to RPC endpoints and indexer APIs
+---
+apiVersion: lux.network/v1alpha1
+kind: LuxGateway
+metadata:
+  name: api-gateway
+  namespace: lux-mainnet
+  labels:
+    app.kubernetes.io/part-of: lux-network
+    lux.network/network: mainnet
+spec:
+  networkRef: luxd
+  host: api.lux.network
+  replicas: 2
+  port: 8080
+  autoRoutes: true
+  indexerRefs:
+    - indexer-c
+    - indexer-zoo
+    - indexer-hanzo
+    - indexer-spc
+    - indexer-pars
+  cors:
+    allowedOrigins:
+      - "*"
+    allowedMethods:
+      - "GET"
+      - "POST"
+      - "OPTIONS"
+    allowedHeaders:
+      - "Content-Type"
+      - "Authorization"
+  rateLimit:
+    requestsPerSecond: 100
+    burst: 200

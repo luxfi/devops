@@ -1,0 +1,35 @@
+# LuxGateway CR for testnet
+---
+apiVersion: lux.network/v1alpha1
+kind: LuxGateway
+metadata:
+  name: api-gateway
+  namespace: lux-testnet
+  labels:
+    app.kubernetes.io/part-of: lux-network
+    lux.network/network: testnet
+spec:
+  networkRef: luxd
+  host: api.testnet.lux.network
+  replicas: 2
+  port: 8080
+  autoRoutes: true
+  indexerRefs:
+    - indexer-c
+    - indexer-zoo
+    - indexer-hanzo
+    - indexer-spc
+    - indexer-pars
+  cors:
+    allowedOrigins:
+      - "*"
+    allowedMethods:
+      - "GET"
+      - "POST"
+      - "OPTIONS"
+    allowedHeaders:
+      - "Content-Type"
+      - "Authorization"
+  rateLimit:
+    requestsPerSecond: 100
+    burst: 200

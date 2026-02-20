@@ -1,0 +1,58 @@
+# kms.lux.network → kms.hanzo.ai reverse proxy
+#
+# ExternalName service + Ingress so that kms.lux.network resolves
+# to the Hanzo KMS backend. No secrets needed — TLS terminates at
+# the ingress controller with cert-manager (Let's Encrypt).
+#
+# DNS prerequisite: CNAME kms.lux.network → cluster ingress IP
+# (or A record pointing to the nginx-ingress LB external IP)
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kms-proxy
+  namespace: lux-system
+  labels:
+    app.kubernetes.io/name: kms-proxy
+    app.kubernetes.io/component: kms
+    app.kubernetes.io/part-of: lux-network
+spec:
+  type: ExternalName
+  externalName: kms.hanzo.ai
+  ports:
+    - port: 443
+      targetPort: 443
+      protocol: TCP
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: kms-lux-network
+  namespace: lux-system
+  labels:
+    app.kubernetes.io/name: kms-proxy
+    app.kubernetes.io/component: kms
+    app.kubernetes.io/part-of: lux-network
+  annotations:
+    nginx.ingress.kubernetes.io/backend-protocol: "HTTPS"
+    nginx.ingress.kubernetes.io/upstream-vhost: "kms.hanzo.ai"
+    nginx.ingress.kubernetes.io/proxy-ssl-server-name: "on"
+    nginx.ingress.kubernetes.io/proxy-ssl-name: "kms.hanzo.ai"
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - kms.lux.network
+      secretName: kms-lux-network-tls
+  rules:
+    - host: kms.lux.network
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: kms-proxy
+                port:
+                  number: 443

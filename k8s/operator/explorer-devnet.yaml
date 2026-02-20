@@ -1,0 +1,35 @@
+# LuxExplorer CR for devnet
+---
+apiVersion: lux.network/v1alpha1
+kind: LuxExplorer
+metadata:
+  name: explorer
+  namespace: lux-devnet
+  labels:
+    app.kubernetes.io/part-of: lux-network
+    lux.network/network: devnet
+spec:
+  networkRef: luxd
+  indexerRefs:
+    - indexerName: indexer-c
+      displayName: "LUX (C-Chain)"
+      default: true
+    - indexerName: indexer-zoo
+      displayName: "Zoo"
+      color: "#FF6B35"
+    - indexerName: indexer-hanzo
+      displayName: "Hanzo"
+      color: "#7C3AED"
+    - indexerName: indexer-spc
+      displayName: "SPC"
+      color: "#10B981"
+    - indexerName: indexer-pars
+      displayName: "Pars"
+      color: "#F59E0B"
+  replicas: 1
+  port: 3000
+  ingress:
+    host: explorer.devnet.lux.network
+    ingressClass: nginx
+  branding:
+    networkName: "Lux Devnet"

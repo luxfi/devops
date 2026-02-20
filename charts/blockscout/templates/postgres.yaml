@@ -1,0 +1,99 @@
+{{- if .Values.postgres.enabled }}
+apiVersion: v1
+kind: Secret
+metadata:
+  name: blockscout-postgres-{{ .Values.network }}
+  namespace: lux-explorer
+  labels:
+    app: blockscout-postgres
+    network: {{ .Values.network }}
+type: Opaque
+stringData:
+  POSTGRES_PASSWORD: {{ .Values.postgres.password }}
+  POSTGRES_USER: blockscout
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: blockscout-postgres-{{ .Values.network }}
+  namespace: lux-explorer
+  labels:
+    app: blockscout-postgres
+    network: {{ .Values.network }}
+spec:
+  serviceName: blockscout-postgres-{{ .Values.network }}
+  replicas: 1
+  selector:
+    matchLabels:
+      app: blockscout-postgres
+      network: {{ .Values.network }}
+  template:
+    metadata:
+      labels:
+        app: blockscout-postgres
+        network: {{ .Values.network }}
+    spec:
+      containers:
+        - name: postgres
+          image: {{ .Values.postgres.image }}
+          ports:
+            - containerPort: 5432
+          env:
+            - name: POSTGRES_USER
+              value: blockscout
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: blockscout-postgres-{{ .Values.network }}
+                  key: POSTGRES_PASSWORD
+            - name: POSTGRES_DB
+              value: explorer_{{ .Values.network }}
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              cpu: 1
+              memory: 2Gi
+          livenessProbe:
+            exec:
+              command: ["pg_isready", "-U", "blockscout"]
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            exec:
+              command: ["pg_isready", "-U", "blockscout"]
+            initialDelaySeconds: 5
+            periodSeconds: 5
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        storageClassName: {{ .Values.postgres.storageClass }}
+        resources:
+          requests:
+            storage: {{ .Values.postgres.storage }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: blockscout-postgres-{{ .Values.network }}
+  namespace: lux-explorer
+  labels:
+    app: blockscout-postgres
+    network: {{ .Values.network }}
+spec:
+  type: ClusterIP
+  selector:
+    app: blockscout-postgres
+    network: {{ .Values.network }}
+  ports:
+    - port: 5432
+      targetPort: 5432
+{{- end }}

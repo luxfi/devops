@@ -1,0 +1,65 @@
+# Blockscout explorer Helm chart values
+# Deploy per-network with: helm install blockscout-mainnet charts/blockscout -f values-mainnet.yaml -n lux-explorer
+
+network: mainnet
+chainId: 96369
+chainName: "LUX Network"
+chainShortName: "LUX"
+coinName: "LUX"
+coinSymbol: "LUX"
+isTestnet: false
+
+# RPC endpoint (K8s internal DNS)
+rpcUrl: "http://luxd-headless.lux-mainnet.svc.cluster.local:9630/ext/bc/C/rpc"
+wsUrl: "ws://luxd-headless.lux-mainnet.svc.cluster.local:9630/ext/bc/C/ws"
+
+# Frontend domain
+frontendDomain: explore.lux.network
+apiDomain: api-explore.lux.network
+
+# Blockscout images
+images:
+  backend: ghcr.io/blockscout/blockscout:latest
+  frontend: ghcr.io/blockscout/frontend:latest
+  visualizer: ghcr.io/blockscout/visualizer:latest
+  sigProvider: ghcr.io/blockscout/sig-provider:latest
+  stats: ghcr.io/blockscout/stats:latest
+
+# PostgreSQL
+postgres:
+  enabled: true
+  image: postgres:16-alpine
+  storage: 50Gi
+  storageClass: do-block-storage
+  password: blockscout
+
+# Backend config
+backend:
+  replicas: 1
+  secretKeyBase: "56NtB48ear7+wMSf0IQuWDAAazhpb31qyc7GiyspBP2vh7t5zlCsF5QDv76chXeN"
+  poolSize: 40
+  poolSizeApi: 10
+  resources:
+    requests:
+      cpu: 250m
+      memory: 1Gi
+    limits:
+      cpu: 1
+      memory: 4Gi
+
+# Frontend config
+frontend:
+  replicas: 1
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+# Ingress
+ingress:
+  enabled: true
+  className: nginx
+  clusterIssuer: letsencrypt-prod

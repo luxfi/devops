@@ -1,0 +1,14 @@
+# Testnet Blockscout explorer overrides
+network: testnet
+chainId: 96368
+chainName: "LUX Testnet"
+chainShortName: "LUX"
+coinName: "LUX"
+coinSymbol: "LUX"
+isTestnet: true
+
+rpcUrl: "http://luxd-headless.lux-testnet.svc.cluster.local:9640/ext/bc/C/rpc"
+wsUrl: "ws://luxd-headless.lux-testnet.svc.cluster.local:9640/ext/bc/C/ws"
+
+frontendDomain: explore-test.lux.network
+apiDomain: api-explore-test.lux.network

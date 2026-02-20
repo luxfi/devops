@@ -1,0 +1,35 @@
+# LuxGateway CR for devnet
+---
+apiVersion: lux.network/v1alpha1
+kind: LuxGateway
+metadata:
+  name: api-gateway
+  namespace: lux-devnet
+  labels:
+    app.kubernetes.io/part-of: lux-network
+    lux.network/network: devnet
+spec:
+  networkRef: luxd
+  host: api.devnet.lux.network
+  replicas: 1
+  port: 8080
+  autoRoutes: true
+  indexerRefs:
+    - indexer-c
+    - indexer-zoo
+    - indexer-hanzo
+    - indexer-spc
+    - indexer-pars
+  cors:
+    allowedOrigins:
+      - "*"
+    allowedMethods:
+      - "GET"
+      - "POST"
+      - "OPTIONS"
+    allowedHeaders:
+      - "Content-Type"
+      - "Authorization"
+  rateLimit:
+    requestsPerSecond: 200
+    burst: 400
