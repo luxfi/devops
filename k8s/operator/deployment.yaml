@@ -16,11 +16,9 @@ spec:
         app: lux-operator
     spec:
       serviceAccountName: lux-operator
-      imagePullSecrets:
-        - name: registry-hanzo
       containers:
         - name: operator
-          image: registry.digitalocean.com/hanzo/lux-operator:v0.3.5
+          image: ghcr.io/luxfi/operator:v0.3.7
           imagePullPolicy: Always
           args:
             - --namespace
