@@ -43,4 +43,4 @@ axum = { workspace = true }
 thiserror = { workspace = true }
 anyhow = { workspace = true }
 chrono = { workspace = true }
-schemars = "0.8"
+schemars = "1.2"
