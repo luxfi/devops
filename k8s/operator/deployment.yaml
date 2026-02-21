@@ -16,6 +16,8 @@ spec:
         app: lux-operator
     spec:
       serviceAccountName: lux-operator
+      imagePullSecrets:
+        - name: registry-hanzo
       containers:
         - name: operator
           image: ghcr.io/luxfi/operator:v0.3.7
