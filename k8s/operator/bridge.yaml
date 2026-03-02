@@ -46,7 +46,7 @@ spec:
     spec:
       containers:
       - name: postgres
-        image: postgres:15-alpine
+        image: ghcr.io/hanzoai/sql:17-alpine
         ports:
         - containerPort: 5432
         env:
@@ -243,7 +243,7 @@ metadata:
     cert-manager.io/cluster-issuer: letsencrypt-prod
     nginx.ingress.kubernetes.io/proxy-body-size: "10m"
 spec:
-  ingressClassName: nginx
+  ingressClassName: ingress
   tls:
   - hosts:
     - bridge.lux.network

@@ -40,7 +40,7 @@ metadata:
     nginx.ingress.kubernetes.io/proxy-ssl-name: "kms.hanzo.ai"
     cert-manager.io/cluster-issuer: "letsencrypt-prod"
 spec:
-  ingressClassName: nginx
+  ingressClassName: ingress
   tls:
     - hosts:
         - kms.lux.network
