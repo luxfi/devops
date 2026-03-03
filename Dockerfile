@@ -1,6 +1,6 @@
 # Multi-stage build for Lux node with EVM plugin
 # Stage 1: Build the Lux node
-FROM golang:1.23-alpine AS builder-node
+FROM golang:1.26-alpine AS builder-node
 ENV GOTOOLCHAIN=auto
 RUN apk add --no-cache git make gcc musl-dev linux-headers
 WORKDIR /luxd
@@ -8,7 +8,7 @@ COPY node/ .
 RUN CGO_ENABLED=0 go build -o build/luxd ./main
 
 # Stage 2: Build the EVM plugin
-FROM golang:1.23-alpine AS builder-evm
+FROM golang:1.26-alpine AS builder-evm
 ENV GOTOOLCHAIN=auto
 RUN apk add --no-cache git make gcc musl-dev linux-headers
 WORKDIR /build
