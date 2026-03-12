@@ -1,0 +1,249 @@
+# DAG chain indexers for devnet: Q-Chain, Z-Chain, T-Chain, A-Chain
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: indexer-qchain
+  namespace: lux-devnet
+  labels:
+    app: indexer-qchain
+    lux.network/chain: qchain
+    lux.network/network: devnet
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: indexer-qchain
+  template:
+    metadata:
+      labels:
+        app: indexer-qchain
+    spec:
+      containers:
+      - name: indexer
+        image: ghcr.io/luxfi/indexer:latest
+        imagePullPolicy: IfNotPresent
+        args: ["-chain", "qchain"]
+        env:
+        - name: DATABASE_URL
+          value: postgres://explorer:explorer@lux-sql.lux.svc.cluster.local:5432/indexer?sslmode=disable
+        - name: RPC_ENDPOINT
+          value: http://luxd-0.luxd-headless.lux-devnet.svc:9630/ext/bc/Q/rpc
+        - name: WS_ENDPOINT
+          value: ws://luxd-0.luxd-headless.lux-devnet.svc:9630/ext/bc/Q/ws
+        - name: CHAIN_ALIAS
+          value: Q
+        - name: HTTP_PORT
+          value: "4300"
+        - name: POLL_INTERVAL
+          value: "5"
+        ports:
+        - containerPort: 4300
+          name: http
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 4300
+          initialDelaySeconds: 30
+          periodSeconds: 30
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 4300
+          initialDelaySeconds: 10
+          periodSeconds: 10
+        resources:
+          limits:
+            cpu: "1"
+            memory: 1Gi
+          requests:
+            cpu: 100m
+            memory: 256Mi
+      imagePullSecrets:
+      - name: registry-hanzo
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: indexer-zchain
+  namespace: lux-devnet
+  labels:
+    app: indexer-zchain
+    lux.network/chain: zchain
+    lux.network/network: devnet
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: indexer-zchain
+  template:
+    metadata:
+      labels:
+        app: indexer-zchain
+    spec:
+      containers:
+      - name: indexer
+        image: ghcr.io/luxfi/indexer:latest
+        imagePullPolicy: IfNotPresent
+        args: ["-chain", "zchain"]
+        env:
+        - name: DATABASE_URL
+          value: postgres://explorer:explorer@lux-sql.lux.svc.cluster.local:5432/indexer?sslmode=disable
+        - name: RPC_ENDPOINT
+          value: http://luxd-0.luxd-headless.lux-devnet.svc:9630/ext/bc/Z/rpc
+        - name: WS_ENDPOINT
+          value: ws://luxd-0.luxd-headless.lux-devnet.svc:9630/ext/bc/Z/ws
+        - name: CHAIN_ALIAS
+          value: Z
+        - name: HTTP_PORT
+          value: "4400"
+        - name: POLL_INTERVAL
+          value: "5"
+        ports:
+        - containerPort: 4400
+          name: http
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 4400
+          initialDelaySeconds: 30
+          periodSeconds: 30
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 4400
+          initialDelaySeconds: 10
+          periodSeconds: 10
+        resources:
+          limits:
+            cpu: "1"
+            memory: 1Gi
+          requests:
+            cpu: 100m
+            memory: 256Mi
+      imagePullSecrets:
+      - name: registry-hanzo
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: indexer-tchain
+  namespace: lux-devnet
+  labels:
+    app: indexer-tchain
+    lux.network/chain: tchain
+    lux.network/network: devnet
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: indexer-tchain
+  template:
+    metadata:
+      labels:
+        app: indexer-tchain
+    spec:
+      containers:
+      - name: indexer
+        image: ghcr.io/luxfi/indexer:latest
+        imagePullPolicy: IfNotPresent
+        args: ["-chain", "tchain"]
+        env:
+        - name: DATABASE_URL
+          value: postgres://explorer:explorer@lux-sql.lux.svc.cluster.local:5432/indexer?sslmode=disable
+        - name: RPC_ENDPOINT
+          value: http://luxd-0.luxd-headless.lux-devnet.svc:9630/ext/bc/T/rpc
+        - name: WS_ENDPOINT
+          value: ws://luxd-0.luxd-headless.lux-devnet.svc:9630/ext/bc/T/ws
+        - name: CHAIN_ALIAS
+          value: T
+        - name: HTTP_PORT
+          value: "4700"
+        - name: POLL_INTERVAL
+          value: "5"
+        ports:
+        - containerPort: 4700
+          name: http
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 4700
+          initialDelaySeconds: 30
+          periodSeconds: 30
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 4700
+          initialDelaySeconds: 10
+          periodSeconds: 10
+        resources:
+          limits:
+            cpu: "1"
+            memory: 1Gi
+          requests:
+            cpu: 100m
+            memory: 256Mi
+      imagePullSecrets:
+      - name: registry-hanzo
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: indexer-achain
+  namespace: lux-devnet
+  labels:
+    app: indexer-achain
+    lux.network/chain: achain
+    lux.network/network: devnet
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: indexer-achain
+  template:
+    metadata:
+      labels:
+        app: indexer-achain
+    spec:
+      containers:
+      - name: indexer
+        image: ghcr.io/luxfi/indexer:latest
+        imagePullPolicy: IfNotPresent
+        args: ["-chain", "achain"]
+        env:
+        - name: DATABASE_URL
+          value: postgres://explorer:explorer@lux-sql.lux.svc.cluster.local:5432/indexer?sslmode=disable
+        - name: RPC_ENDPOINT
+          value: http://luxd-0.luxd-headless.lux-devnet.svc:9630/ext/bc/A/rpc
+        - name: WS_ENDPOINT
+          value: ws://luxd-0.luxd-headless.lux-devnet.svc:9630/ext/bc/A/ws
+        - name: CHAIN_ALIAS
+          value: A
+        - name: HTTP_PORT
+          value: "4500"
+        - name: POLL_INTERVAL
+          value: "5"
+        ports:
+        - containerPort: 4500
+          name: http
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 4500
+          initialDelaySeconds: 30
+          periodSeconds: 30
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 4500
+          initialDelaySeconds: 10
+          periodSeconds: 10
+        resources:
+          limits:
+            cpu: "1"
+            memory: 1Gi
+          requests:
+            cpu: 100m
+            memory: 256Mi
+      imagePullSecrets:
+      - name: registry-hanzo
