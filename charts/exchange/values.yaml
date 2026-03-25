@@ -56,5 +56,5 @@ redis:
 # Ingress
 ingress:
   enabled: true
-  className: nginx
+  className: hanzo
   clusterIssuer: letsencrypt-prod

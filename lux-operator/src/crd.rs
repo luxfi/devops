@@ -1501,7 +1501,7 @@ pub struct ExplorerIngressSpec {
     /// TLS secret name (for HTTPS)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tls_secret: Option<String>,
-    /// Ingress class (e.g., "nginx")
+    /// Ingress class (e.g., "hanzo")
     #[serde(default = "default_ingress_class")]
     pub ingress_class: String,
     /// Additional annotations
@@ -1510,7 +1510,7 @@ pub struct ExplorerIngressSpec {
 }
 
 fn default_ingress_class() -> String {
-    "nginx".to_string()
+    "hanzo".to_string()
 }
 
 /// Explorer branding configuration

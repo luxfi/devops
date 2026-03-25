@@ -4,7 +4,7 @@
 #
 # Prerequisites:
 #   - Images: ghcr.io/luxfi/bridge:latest (UI), ghcr.io/luxfi/bridge/server:latest (server)
-#   - DNS: bridge.lux.network → 24.199.76.156 (nginx ingress LB)
+#   - DNS: bridge.lux.network → 24.199.76.156 (hanzo ingress LB)
 #   - Image pull secret: ghcr-luxfi in lux-bridge namespace
 ---
 apiVersion: v1
@@ -241,9 +241,8 @@ metadata:
   namespace: lux-bridge
   annotations:
     cert-manager.io/cluster-issuer: letsencrypt-prod
-    nginx.ingress.kubernetes.io/proxy-body-size: "10m"
 spec:
-  ingressClassName: ingress
+  ingressClassName: hanzo
   tls:
   - hosts:
     - bridge.lux.network

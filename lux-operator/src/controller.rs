@@ -4920,7 +4920,7 @@ async fn create_gateway_resources(
         let mut annotations = BTreeMap::new();
         annotations.insert(
             "kubernetes.io/ingress.class".to_string(),
-            "nginx".to_string(),
+            "hanzo".to_string(),
         );
         if tls.cert_manager {
             if let Some(issuer) = &tls.issuer {

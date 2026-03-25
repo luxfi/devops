@@ -32,6 +32,6 @@ spec:
   port: 3000
   ingress:
     host: explorer.lux.network
-    ingressClass: nginx
+    ingressClass: hanzo
   branding:
     networkName: "Lux Network"
