@@ -77,7 +77,7 @@ flate2 = "1.0"
 
 # EVM
 alloy-primitives = "0.8"
-alloy-signer = "0.6"
+alloy-signer = "1.7"
 alloy-signer-local = "0.6"
 alloy-consensus = "0.6"
 alloy-network = "0.6"
