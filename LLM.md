@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-Lux Ops is a Rust workspace providing infrastructure automation for deploying and operating Lux Network nodes. Forked from avalanche-ops at commit `1631a68a` (last BSD-3-Clause version). Primary deployment mechanism is the Helm chart.
+Lux Ops is a Rust workspace providing infrastructure automation for deploying and operating Lux Network nodes. Primary deployment mechanism is the Helm chart.
 
 ## Operator Deployment (2026-02-19)
 
@@ -74,7 +74,7 @@ KMSSecret resources:
 ### Bootnode Integration
 
 A **generic blockchain operator** also exists at `~/work/bootnode/operator/` with:
-- Pluggable chain drivers (Lux, Avalanche, Ethereum, Bitcoin)
+- Pluggable chain drivers (Lux, Ethereum, Bitcoin)
 - `Cluster` CRD (`bootnode.dev/v1alpha1`) — single K8s cluster
 - `Fleet` API concept — multi-cluster management
 - `FleetManager` → creates `Cluster` CRs → operator reconciles
