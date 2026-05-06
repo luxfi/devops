@@ -685,15 +685,15 @@ cd ${HOME}/avalanche-ops
 
 TODO: network forking
 
-### Custom network with NO initial database state, with subnet-evm
+### Custom network with NO initial database state, with evm
 
-First, make sure you have `subnet-evm` installed in your local machine (for uploads).
+First, make sure you have `evm` installed in your local machine (for uploads).
 
 Install the following:
 - https://github.com/luxfi/evm
 - https://github.com/luxfi/cli
 
-See ["install `evm` in the custom network"](./example-aws.md#optional-install-subnet-evm-in-the-custom-network) for demo.
+See ["install `evm` in the custom network"](./example-aws.md#optional-install-evm-in-the-custom-network) for demo.
 
 ```bash
 rm -rf ${HOME}/go/src/github.com/luxfi/node/build
@@ -765,12 +765,12 @@ cd ${HOME}/avalanche-ops
 --upload-artifacts-plugin-local-dir ${LUXD_PLUGINS_DIR_PATH} \
 --network-name custom \
 --avalanchego-log-level INFO \
---subnet-evms 1
+--evms 1
 
 #####
 LUXD_BIN_PATH=${HOME}/go/src/github.com/luxfi/node/build/luxd
 LUXD_PLUGINS_DIR_PATH=${HOME}/go/src/github.com/luxfi/node/build/plugins
-rm -rf ${HOME}/subnet-evm-test-keys
+rm -rf ${HOME}/evm-test-keys
 cd ${HOME}/avalanche-ops
 ./target/release/avalancheup-aws default-spec \
 --region us-west-2 \
@@ -780,13 +780,13 @@ cd ${HOME}/avalanche-ops
 --network-name custom \
 --avalanchego-log-level INFO \
 --keys-to-generate 30 \
---key-files-dir ${HOME}/subnet-evm-test-keys \
---subnet-evms 1
+--key-files-dir ${HOME}/evm-test-keys \
+--evms 1
 
 #####
 LUXD_BIN_PATH=${HOME}/go/src/github.com/luxfi/node/build/luxd
 LUXD_PLUGINS_DIR_PATH=${HOME}/go/src/github.com/luxfi/node/build/plugins
-rm -rf ${HOME}/subnet-evm-test-keys
+rm -rf ${HOME}/evm-test-keys
 cd ${HOME}/avalanche-ops
 ./target/release/avalancheup-aws default-spec \
 --region us-west-2 \
@@ -796,8 +796,8 @@ cd ${HOME}/avalanche-ops
 --network-name custom \
 --avalanchego-log-level INFO \
 --keys-to-generate 30 \
---key-files-dir ${HOME}/subnet-evm-test-keys \
---subnet-evms 1
+--key-files-dir ${HOME}/evm-test-keys \
+--evms 1
 
 # e.g., adjust gas limit
 # https://www.rapidtables.com/convert/number/hex-to-decimal.html

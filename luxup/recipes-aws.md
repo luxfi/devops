@@ -30,13 +30,13 @@ avalancheup-aws default-spec --network-name custom
 ```
 
 ```bash
-# 2. simple, default spot instance + elastic IP, subnet-evm
+# 2. simple, default spot instance + elastic IP, evm
 # all plugins/binaries are downloaded automatic in the hosts
-avalancheup-aws default-spec --network-name custom --subnet-evms 1
+avalancheup-aws default-spec --network-name custom --evms 1
 ```
 
 ```bash
-# 3. simple, subnet-evm with custom luxd binary
+# 3. simple, evm with custom luxd binary
 # some plugins/binaries are downloaded automatic from S3 to the hosts
 avalancheup-aws default-spec \
 --upload-artifacts-avalanchego-local-bin ${LUXD_BIN_PATH} \
@@ -45,11 +45,11 @@ avalancheup-aws default-spec \
 --ip-mode=elastic \
 --network-name custom \
 --keys-to-generate 5 \
---subnet-evms 1
+--evms 1
 ```
 
 ```bash
-# 4. advanced, subnet-evm with custom luxd binary
+# 4. advanced, evm with custom luxd binary
 # all plugins/binaries are downloaded automatic from S3 to the hosts
 LUXDD_BIN_PATH=/home/ubuntu/avalanche-ops/target/release/avalanched-aws
 AWS_VOLUME_PROVISIONER_BIN_PATH=/tmp/aws-volume-provisioner-new
@@ -72,7 +72,7 @@ avalancheup-aws default-spec \
 --network-name custom \
 --keys-to-generate 50 \
 --keys-to-generate-type hot \
---subnet-evms 1
+--evms 1
 ```
 
 > Note: the upstream provisioner flags retain their `--upload-artifacts-avalanchego-local-bin`
