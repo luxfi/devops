@@ -1,9 +1,14 @@
 
-# avalanche-ops-recipes
+# luxup AWS recipes (advanced)
 
-Recipes for avalanche-ops https://github.com/ava-labs/avalanche-ops.
+These recipes wrap the upstream `avalancheup-aws` provisioner so it deploys
+**`luxd`** (`github.com/luxfi/node`) instead of upstream `avalanchego`. The
+provisioner CLI keeps its upstream name because Lux does not yet ship an
+equivalent (`luxup-aws`) — **flagged for follow-up migration to a native
+`luxup-aws` binary**. Where flag names below still read `--upload-artifacts-avalanchego-local-bin`,
+they accept the `luxd` binary unchanged.
 
-## Step 1: Install `avalancheup`
+## Step 1: Install `avalancheup` (upstream provisioner)
 
 To download from release, visit https://github.com/ava-labs/avalanche-ops/releases.
 
@@ -30,18 +35,20 @@ avalancheup-aws -h
 
 ## Step 2: Install artifacts on your local machine
 
-In order to provision avalanche node, you need the software compiled for the remote machine's OS and architecture (e.g., if your server runs linux, then you need provide linux binaries to `avalancheup` commands).
+In order to provision a Lux node, you need the software compiled for the
+remote machine's OS and architecture (e.g., if your server runs linux, then
+you need provide linux binaries to `avalancheup` commands).
 
-For instance, to download the latest `avalanchego` release:
+For instance, to download the latest `luxd` release:
 
 ```bash
-# https://github.com/ava-labs/avalanchego/releases
-VERSION=1.9.7
-DOWNLOAD_URL=https://github.com/ava-labs/avalanchego/releases/download/
-rm -rf /tmp/avalanchego.tar.gz /tmp/avalanchego-v${VERSION}
-curl -L ${DOWNLOAD_URL}/v${VERSION}/avalanchego-linux-amd64-v${VERSION}.tar.gz -o /tmp/avalanchego.tar.gz
-tar xzvf /tmp/avalanchego.tar.gz -C /tmp
-find /tmp/avalanchego-v${VERSION}
+# https://github.com/luxfi/node/releases
+VERSION=1.23.23
+DOWNLOAD_URL=https://github.com/luxfi/node/releases/download/
+rm -rf /tmp/luxd.tar.gz /tmp/luxd-v${VERSION}
+curl -L ${DOWNLOAD_URL}/v${VERSION}/luxd-linux-amd64-v${VERSION}.tar.gz -o /tmp/luxd.tar.gz
+tar xzvf /tmp/luxd.tar.gz -C /tmp
+find /tmp/luxd-v${VERSION}
 ```
 
 To cross-compile locally, run something like:
@@ -53,19 +60,21 @@ ln -s /usr/local/opt/musl-cross/bin/x86_64-linux-musl-gcc /usr/local/bin/musl-gc
 
 # -ldflags=-w to turn off DWARF debugging information
 # -ldflags=-s to disable generation of the Go symbol table
-rm -rf ${HOME}/go/src/github.com/ava-labs/avalanchego/build
-cd ${HOME}/go/src/github.com/ava-labs/avalanchego
+rm -rf ${HOME}/go/src/github.com/luxfi/node/build
+cd ${HOME}/go/src/github.com/luxfi/node
 CC=x86_64-linux-musl-gcc \
 CXX=x86_64-linux-musl-g++ \
 CGO_ENABLED=1 \
 STATIC_COMPILATION=1 \
 GOOS=linux GOARCH=amd64 ./scripts/build.sh
 
-find ${HOME}/go/src/github.com/ava-labs/avalanchego/build
-ls -lah ${HOME}/go/src/github.com/ava-labs/avalanchego/build/plugins
+find ${HOME}/go/src/github.com/luxfi/node/build
+ls -lah ${HOME}/go/src/github.com/luxfi/node/build/plugins
 ```
 
-You also need the `avalanched` daemon to run in the remote machines, which can be downloaded from the release page https://github.com/ava-labs/avalanche-ops/releases.
+You also need the `avalanched` daemon to run in the remote machines, which
+can be downloaded from the release page
+https://github.com/ava-labs/avalanche-ops/releases.
 
 ```bash
 # this does not work... manually download for now...
@@ -76,14 +85,16 @@ https://github.com/ava-labs/avalanche-ops/releases/download/latest/avalanched-aw
 
 ## Step 3: Write avalanche-ops spec file
 
-Now you need to write specification of how networks/nodes are to be provisioned. Use `avalancheup-aws default-spec` to auto-generate the file with some defaults.
+Now you need to write specification of how networks/nodes are to be
+provisioned. Use `avalancheup-aws default-spec` to auto-generate the file
+with some defaults.
 
 ```bash
 avalancheup-aws default-spec \
 --region us-west-2 \
 --upload-artifacts-avalanched-aws-local-bin ./avalanched-aws.x86_64-unknown-linux-gnu \
---upload-artifacts-avalanchego-local-bin [AVALANCHE_BUILD_DIR]/avalanchego \
---upload-artifacts-plugin-local-dir [AVALANCHE_BUILD_DIR]/plugins \
+--upload-artifacts-avalanchego-local-bin [LUXD_BUILD_DIR]/luxd \
+--upload-artifacts-plugin-local-dir [LUXD_BUILD_DIR]/plugins \
 --network-name custom \
 --avalanchego-log-level INFO \
 --spec-file-path spec.yaml
@@ -107,7 +118,8 @@ avalancheup-aws apply --spec-file-path spec.yaml
 avalancheup-aws delete --spec-file-path spec.yaml
 ```
 
-Once `apply` command succeeds, the terminal outputs some helper commands to access the instances:
+Once `apply` command succeeds, the terminal outputs some helper commands
+to access the instances:
 
 ```bash
 chmod 400 test.key
@@ -117,7 +129,7 @@ aws ssm start-session --region us-west-2 --target i-abc
 
 # in the machine, you can run something like this
 sudo tail -f /var/log/avalanched-aws.log
-sudo tail -f /var/log/avalanchego/avalanchego.log
+sudo tail -f /var/log/lux/luxd.log
 ls -lah /data/
 
 # logs are available in CloudWatch
@@ -167,7 +179,7 @@ chmod +x /tmp/avalanched-aws.x86_64-unknown-linux-gnu
 
 
 # update "avalanched"
-# it runs "sudo systemctl stop avalanchego.service" and "restart"
+# it runs "sudo systemctl stop luxd.service" and "restart"
 sudo systemctl stop avalanched.service
 sudo systemctl disable avalanched.service
 
@@ -184,62 +196,62 @@ sudo tail -f /var/log/avalanched-aws.log
 ```bash
 curl -L \
 https://github.com/ava-labs/avalanche-telemetry/releases/download/latest/avalanche-telemetry-cloudwatch.x86_64-unknown-linux-gnu \
--o /tmp/avalanche-telemetry-cloudwatch-aws.x86_64-unknown-linux-gnu
+-o /tmp/lux-telemetry-cloudwatch-aws.x86_64-unknown-linux-gnu
 
-chmod +x /tmp/avalanche-telemetry-cloudwatch-aws.x86_64-unknown-linux-gnu
-/tmp/avalanche-telemetry-cloudwatch-aws.x86_64-unknown-linux-gnu --version
-
-
+chmod +x /tmp/lux-telemetry-cloudwatch-aws.x86_64-unknown-linux-gnu
+/tmp/lux-telemetry-cloudwatch-aws.x86_64-unknown-linux-gnu --version
 
 
 
-# update "avalanche-telemetry-cloudwatch"
-sudo systemctl stop avalanche-telemetry-cloudwatch.service
-sudo systemctl disable avalanche-telemetry-cloudwatch.service
 
-sudo mv /tmp/avalanche-telemetry-cloudwatch-aws.x86_64-unknown-linux-gnu /usr/local/bin/avalanche-telemetry-cloudwatch
-/usr/local/bin/avalanche-telemetry-cloudwatch --version
 
-sudo systemctl enable avalanche-telemetry-cloudwatch.service
-sudo systemctl restart --no-block avalanche-telemetry-cloudwatch.service
+# update "lux-telemetry-cloudwatch"
+sudo systemctl stop lux-telemetry-cloudwatch.service
+sudo systemctl disable lux-telemetry-cloudwatch.service
 
-sudo tail /var/log/avalanche-telemetry-cloudwatch.log
-sudo tail -f /var/log/avalanche-telemetry-cloudwatch.log
+sudo mv /tmp/lux-telemetry-cloudwatch-aws.x86_64-unknown-linux-gnu /usr/local/bin/lux-telemetry-cloudwatch
+/usr/local/bin/lux-telemetry-cloudwatch --version
+
+sudo systemctl enable lux-telemetry-cloudwatch.service
+sudo systemctl restart --no-block lux-telemetry-cloudwatch.service
+
+sudo tail /var/log/lux-telemetry-cloudwatch.log
+sudo tail -f /var/log/lux-telemetry-cloudwatch.log
 ```
 
 ```bash
-# update "AVALANCHE_TELEMETRY_CLOUDWATCH_RULES_FILE_PATH" for rules
-vi /data/avalanche-telemetry-cloudwatch.rules.yaml
+# update "LUX_TELEMETRY_CLOUDWATCH_RULES_FILE_PATH" for rules
+vi /data/lux-telemetry-cloudwatch.rules.yaml
 ```
 
 ```bash
-# https://github.com/ava-labs/avalanchego/releases
-VERSION=1.9.7
-DOWNLOAD_URL=https://github.com/ava-labs/avalanchego/releases/download/
-rm -rf /tmp/avalanchego.tar.gz /tmp/avalanchego-v${VERSION}
-curl -L ${DOWNLOAD_URL}/v${VERSION}/avalanchego-linux-amd64-v${VERSION}.tar.gz -o /tmp/avalanchego.tar.gz
-tar xzvf /tmp/avalanchego.tar.gz -C /tmp
-find /tmp/avalanchego-v${VERSION}
+# https://github.com/luxfi/node/releases
+VERSION=1.23.23
+DOWNLOAD_URL=https://github.com/luxfi/node/releases/download/
+rm -rf /tmp/luxd.tar.gz /tmp/luxd-v${VERSION}
+curl -L ${DOWNLOAD_URL}/v${VERSION}/luxd-linux-amd64-v${VERSION}.tar.gz -o /tmp/luxd.tar.gz
+tar xzvf /tmp/luxd.tar.gz -C /tmp
+find /tmp/luxd-v${VERSION}
 
-chmod +x /tmp/avalanchego-v${VERSION}/avalanchego
-/tmp/avalanchego-v${VERSION}/avalanchego --version
-
-
+chmod +x /tmp/luxd-v${VERSION}/luxd
+/tmp/luxd-v${VERSION}/luxd --version
 
 
 
-# update "avalanchego"
-sudo systemctl stop avalanchego.service
-sudo systemctl disable avalanchego.service
 
-sudo mv /tmp/avalanchego-v${VERSION}/avalanchego /usr/local/bin/avalanche
-/usr/local/bin/avalanche --version
 
-sudo systemctl enable avalanchego.service
-sudo systemctl restart --no-block avalanchego.service
+# update "luxd"
+sudo systemctl stop luxd.service
+sudo systemctl disable luxd.service
 
-sudo tail /var/log/avalanchego/avalanchego.log
-sudo tail -f /var/log/avalanchego/avalanchego.log
+sudo mv /tmp/luxd-v${VERSION}/luxd /usr/local/bin/luxd
+/usr/local/bin/luxd --version
+
+sudo systemctl enable luxd.service
+sudo systemctl restart --no-block luxd.service
+
+sudo tail /var/log/lux/luxd.log
+sudo tail -f /var/log/lux/luxd.log
 ```
 
 ### Cheapest way to set up a network or validator
@@ -263,7 +275,7 @@ cd ${HOME}/avalanche-ops
 cd ${HOME}/avalanche-ops
 ./target/release/avalancheup-aws default-spec \
 --region us-west-2 \
---network-name fuji \
+--network-name testnet \
 --instance-mode spot \
 --volume-size-in-gb 400 \
 --avalanchego-log-level INFO
@@ -297,8 +309,8 @@ cd ${HOME}/avalanche-ops
 ### Custom network with NO initial database state
 
 ```bash
-rm -rf ${HOME}/go/src/github.com/ava-labs/avalanchego/build
-cd ${HOME}/go/src/github.com/ava-labs/avalanchego
+rm -rf ${HOME}/go/src/github.com/luxfi/node/build
+cd ${HOME}/go/src/github.com/luxfi/node
 CC=x86_64-linux-musl-gcc \
 CXX=x86_64-linux-musl-g++ \
 CGO_ENABLED=1 \
@@ -322,31 +334,31 @@ AVALANCHED_BIN_PATH=${HOME}/avalanched-aws.x86_64-unknown-linux-gnu
 
 ##
 # if compiled locally
-AVALANCHE_BIN_PATH=${HOME}/go/src/github.com/ava-labs/avalanchego/build/avalanchego
-# if downloaded from https://github.com/ava-labs/avalanche-ops/releases
-VERSION=1.9.7
-AVALANCHE_BIN_PATH=/tmp/avalanchego-v${VERSION}/avalanchego
+LUXD_BIN_PATH=${HOME}/go/src/github.com/luxfi/node/build/luxd
+# if downloaded from https://github.com/luxfi/node/releases
+VERSION=1.23.23
+LUXD_BIN_PATH=/tmp/luxd-v${VERSION}/luxd
 
 ##
 # if compiled locally
-AVALANCHE_PLUGINS_DIR_PATH=${HOME}/go/src/github.com/ava-labs/avalanchego/build/plugins
-# https://github.com/ava-labs/avalanchego/releases
-VERSION=1.9.7
-DOWNLOAD_URL=https://github.com/ava-labs/avalanchego/releases/download/
-rm -rf /tmp/avalanchego.tar.gz /tmp/avalanchego-v${VERSION}
-curl -L ${DOWNLOAD_URL}/v${VERSION}/avalanchego-linux-amd64-v${VERSION}.tar.gz -o /tmp/avalanchego.tar.gz
-tar xzvf /tmp/avalanchego.tar.gz -C /tmp
-find /tmp/avalanchego-v${VERSION}
-# if downloaded from https://github.com/ava-labs/avalanche-ops/releases
-VERSION=1.9.7
-AVALANCHE_PLUGINS_DIR_PATH=/tmp/avalanchego-v${VERSION}/plugins
+LUXD_PLUGINS_DIR_PATH=${HOME}/go/src/github.com/luxfi/node/build/plugins
+# https://github.com/luxfi/node/releases
+VERSION=1.23.23
+DOWNLOAD_URL=https://github.com/luxfi/node/releases/download/
+rm -rf /tmp/luxd.tar.gz /tmp/luxd-v${VERSION}
+curl -L ${DOWNLOAD_URL}/v${VERSION}/luxd-linux-amd64-v${VERSION}.tar.gz -o /tmp/luxd.tar.gz
+tar xzvf /tmp/luxd.tar.gz -C /tmp
+find /tmp/luxd-v${VERSION}
+# if downloaded from https://github.com/luxfi/node/releases
+VERSION=1.23.23
+LUXD_PLUGINS_DIR_PATH=/tmp/luxd-v${VERSION}/plugins
 
 cd ${HOME}/avalanche-ops
 ./target/release/avalancheup-aws default-spec \
 --region us-west-2 \
 --upload-artifacts-avalanched-aws-local-bin ${AVALANCHED_BIN_PATH} \
---upload-artifacts-avalanchego-local-bin ${AVALANCHE_BIN_PATH} \
---upload-artifacts-plugin-local-dir ${AVALANCHE_PLUGINS_DIR_PATH} \
+--upload-artifacts-avalanchego-local-bin ${LUXD_BIN_PATH} \
+--upload-artifacts-plugin-local-dir ${LUXD_PLUGINS_DIR_PATH} \
 --network-name custom \
 --avalanchego-log-level DEBUG
 
@@ -398,9 +410,9 @@ cd ${HOME}/avalanche-ops
 ./target/release/avalancheup-aws apply --spec-file-path [YOUR_SPEC_PATH]
 ```
 
-### Custom network with NO initial database state, with Coreth EVM config file
+### Custom network with NO initial database state, with EVM config file
 
-See https://pkg.go.dev/github.com/ava-labs/coreth/plugin/evm#Config for more.
+See https://pkg.go.dev/github.com/luxfi/evm/plugin/evm#Config for more.
 
 ```bash
 # or cross-compile on your machine using docker
@@ -418,31 +430,31 @@ AVALANCHED_BIN_PATH=${HOME}/avalanched-aws.x86_64-unknown-linux-gnu
 
 ##
 # if compiled locally
-AVALANCHE_BIN_PATH=${HOME}/go/src/github.com/ava-labs/avalanchego/build/avalanchego
-# if downloaded from https://github.com/ava-labs/avalanche-ops/releases
-VERSION=1.9.7
-AVALANCHE_BIN_PATH=/tmp/avalanchego-v${VERSION}/avalanchego
+LUXD_BIN_PATH=${HOME}/go/src/github.com/luxfi/node/build/luxd
+# if downloaded from https://github.com/luxfi/node/releases
+VERSION=1.23.23
+LUXD_BIN_PATH=/tmp/luxd-v${VERSION}/luxd
 
 ##
 # if compiled locally
-AVALANCHE_PLUGINS_DIR_PATH=${HOME}/go/src/github.com/ava-labs/avalanchego/build/plugins
-# https://github.com/ava-labs/avalanchego/releases
-VERSION=1.9.7
-DOWNLOAD_URL=https://github.com/ava-labs/avalanchego/releases/download/
-rm -rf /tmp/avalanchego.tar.gz /tmp/avalanchego-v${VERSION}
-curl -L ${DOWNLOAD_URL}/v${VERSION}/avalanchego-linux-amd64-v${VERSION}.tar.gz -o /tmp/avalanchego.tar.gz
-tar xzvf /tmp/avalanchego.tar.gz -C /tmp
-find /tmp/avalanchego-v${VERSION}
-# if downloaded from https://github.com/ava-labs/avalanche-ops/releases
-VERSION=1.9.7
-AVALANCHE_PLUGINS_DIR_PATH=/tmp/avalanchego-v${VERSION}/plugins
+LUXD_PLUGINS_DIR_PATH=${HOME}/go/src/github.com/luxfi/node/build/plugins
+# https://github.com/luxfi/node/releases
+VERSION=1.23.23
+DOWNLOAD_URL=https://github.com/luxfi/node/releases/download/
+rm -rf /tmp/luxd.tar.gz /tmp/luxd-v${VERSION}
+curl -L ${DOWNLOAD_URL}/v${VERSION}/luxd-linux-amd64-v${VERSION}.tar.gz -o /tmp/luxd.tar.gz
+tar xzvf /tmp/luxd.tar.gz -C /tmp
+find /tmp/luxd-v${VERSION}
+# if downloaded from https://github.com/luxfi/node/releases
+VERSION=1.23.23
+LUXD_PLUGINS_DIR_PATH=/tmp/luxd-v${VERSION}/plugins
 
 cd ${HOME}/avalanche-ops
 ./target/release/avalancheup-aws default-spec \
 --region us-west-2 \
 --upload-artifacts-avalanched-aws-local-bin ${AVALANCHED_BIN_PATH} \
---upload-artifacts-avalanchego-local-bin ${AVALANCHE_BIN_PATH} \
---upload-artifacts-plugin-local-dir ${AVALANCHE_PLUGINS_DIR_PATH} \
+--upload-artifacts-avalanchego-local-bin ${LUXD_BIN_PATH} \
+--upload-artifacts-plugin-local-dir ${LUXD_PLUGINS_DIR_PATH} \
 --coreth-metrics-enabled \
 --coreth-continuous-profiler-enabled \
 --coreth-offline-pruning-enabled \
@@ -468,31 +480,31 @@ AVALANCHED_BIN_PATH=${HOME}/avalanched-aws.x86_64-unknown-linux-gnu
 
 ##
 # if compiled locally
-AVALANCHE_BIN_PATH=${HOME}/go/src/github.com/ava-labs/avalanchego/build/avalanchego
-# if downloaded from https://github.com/ava-labs/avalanche-ops/releases
-VERSION=1.9.7
-AVALANCHE_BIN_PATH=/tmp/avalanchego-v${VERSION}/avalanchego
+LUXD_BIN_PATH=${HOME}/go/src/github.com/luxfi/node/build/luxd
+# if downloaded from https://github.com/luxfi/node/releases
+VERSION=1.23.23
+LUXD_BIN_PATH=/tmp/luxd-v${VERSION}/luxd
 
 ##
 # if compiled locally
-AVALANCHE_PLUGINS_DIR_PATH=${HOME}/go/src/github.com/ava-labs/avalanchego/build/plugins
-# https://github.com/ava-labs/avalanchego/releases
-VERSION=1.9.7
-DOWNLOAD_URL=https://github.com/ava-labs/avalanchego/releases/download/
-rm -rf /tmp/avalanchego.tar.gz /tmp/avalanchego-v${VERSION}
-curl -L ${DOWNLOAD_URL}/v${VERSION}/avalanchego-linux-amd64-v${VERSION}.tar.gz -o /tmp/avalanchego.tar.gz
-tar xzvf /tmp/avalanchego.tar.gz -C /tmp
-find /tmp/avalanchego-v${VERSION}
-# if downloaded from https://github.com/ava-labs/avalanche-ops/releases
-VERSION=1.9.7
-AVALANCHE_PLUGINS_DIR_PATH=/tmp/avalanchego-v${VERSION}/plugins
+LUXD_PLUGINS_DIR_PATH=${HOME}/go/src/github.com/luxfi/node/build/plugins
+# https://github.com/luxfi/node/releases
+VERSION=1.23.23
+DOWNLOAD_URL=https://github.com/luxfi/node/releases/download/
+rm -rf /tmp/luxd.tar.gz /tmp/luxd-v${VERSION}
+curl -L ${DOWNLOAD_URL}/v${VERSION}/luxd-linux-amd64-v${VERSION}.tar.gz -o /tmp/luxd.tar.gz
+tar xzvf /tmp/luxd.tar.gz -C /tmp
+find /tmp/luxd-v${VERSION}
+# if downloaded from https://github.com/luxfi/node/releases
+VERSION=1.23.23
+LUXD_PLUGINS_DIR_PATH=/tmp/luxd-v${VERSION}/plugins
 
 cd ${HOME}/avalanche-ops
 ./target/release/avalancheup-aws default-spec \
 --region us-west-2 \
 --upload-artifacts-avalanched-aws-local-bin ${AVALANCHED_BIN_PATH} \
---upload-artifacts-avalanchego-local-bin ${AVALANCHE_BIN_PATH} \
---upload-artifacts-plugin-local-dir ${AVALANCHE_PLUGINS_DIR_PATH} \
+--upload-artifacts-avalanchego-local-bin ${LUXD_BIN_PATH} \
+--upload-artifacts-plugin-local-dir ${LUXD_PLUGINS_DIR_PATH} \
 --network-name custom \
 --avalanchego-log-level INFO
 
@@ -503,8 +515,8 @@ cd ${HOME}/avalanche-ops
 ```bash
 cd ${HOME}/avalanche-ops
 ./target/release/avalancheup-aws events update-artifacts \
---upload-artifacts-avalanchego-local-bin ${AVALANCHE_BIN_PATH} \
---upload-artifacts-plugin-local-dir ${AVALANCHE_PLUGINS_DIR_PATH} \
+--upload-artifacts-avalanchego-local-bin ${LUXD_BIN_PATH} \
+--upload-artifacts-plugin-local-dir ${LUXD_PLUGINS_DIR_PATH} \
 --spec-file-path [YOUR_SPEC_PATH]
 ```
 
@@ -530,31 +542,31 @@ AVALANCHED_BIN_PATH=${HOME}/avalanched-aws.x86_64-unknown-linux-gnu
 
 ##
 # if compiled locally
-AVALANCHE_BIN_PATH=${HOME}/go/src/github.com/ava-labs/avalanchego/build/avalanchego
-# if downloaded from https://github.com/ava-labs/avalanche-ops/releases
-VERSION=1.9.7
-AVALANCHE_BIN_PATH=/tmp/avalanchego-v${VERSION}/avalanchego
+LUXD_BIN_PATH=${HOME}/go/src/github.com/luxfi/node/build/luxd
+# if downloaded from https://github.com/luxfi/node/releases
+VERSION=1.23.23
+LUXD_BIN_PATH=/tmp/luxd-v${VERSION}/luxd
 
 ##
 # if compiled locally
-AVALANCHE_PLUGINS_DIR_PATH=${HOME}/go/src/github.com/ava-labs/avalanchego/build/plugins
-# https://github.com/ava-labs/avalanchego/releases
-VERSION=1.9.7
-DOWNLOAD_URL=https://github.com/ava-labs/avalanchego/releases/download/
-rm -rf /tmp/avalanchego.tar.gz /tmp/avalanchego-v${VERSION}
-curl -L ${DOWNLOAD_URL}/v${VERSION}/avalanchego-linux-amd64-v${VERSION}.tar.gz -o /tmp/avalanchego.tar.gz
-tar xzvf /tmp/avalanchego.tar.gz -C /tmp
-find /tmp/avalanchego-v${VERSION}
-# if downloaded from https://github.com/ava-labs/avalanche-ops/releases
-VERSION=1.9.7
-AVALANCHE_PLUGINS_DIR_PATH=/tmp/avalanchego-v${VERSION}/plugins
+LUXD_PLUGINS_DIR_PATH=${HOME}/go/src/github.com/luxfi/node/build/plugins
+# https://github.com/luxfi/node/releases
+VERSION=1.23.23
+DOWNLOAD_URL=https://github.com/luxfi/node/releases/download/
+rm -rf /tmp/luxd.tar.gz /tmp/luxd-v${VERSION}
+curl -L ${DOWNLOAD_URL}/v${VERSION}/luxd-linux-amd64-v${VERSION}.tar.gz -o /tmp/luxd.tar.gz
+tar xzvf /tmp/luxd.tar.gz -C /tmp
+find /tmp/luxd-v${VERSION}
+# if downloaded from https://github.com/luxfi/node/releases
+VERSION=1.23.23
+LUXD_PLUGINS_DIR_PATH=/tmp/luxd-v${VERSION}/plugins
 
 cd ${HOME}/avalanche-ops
 ./target/release/avalancheup-aws default-spec \
 --region us-west-2 \
 --upload-artifacts-avalanched-aws-local-bin ${AVALANCHED_BIN_PATH} \
---upload-artifacts-avalanchego-local-bin ${AVALANCHE_BIN_PATH} \
---upload-artifacts-plugin-local-dir ${AVALANCHE_PLUGINS_DIR_PATH} \
+--upload-artifacts-avalanchego-local-bin ${LUXD_BIN_PATH} \
+--upload-artifacts-plugin-local-dir ${LUXD_PLUGINS_DIR_PATH} \
 --nlb-acm-certificate-arns '{"us-west-2": "$ACM_CERT_ARN"}\
 --network-name custom \
 --avalanchego-log-level INFO
@@ -569,7 +581,7 @@ cat ${HOME}/test-custom-https-for-nlb.yaml \
 # Use "https://[NLB_DNS]:443" for web wallet
 ```
 
-### Custom network with NO initial database state, with HTTP TLS enabled only for `avalanchego`
+### Custom network with NO initial database state, with HTTP TLS enabled only for `luxd`
 
 ```bash
 ##
@@ -584,31 +596,31 @@ AVALANCHED_BIN_PATH=${HOME}/avalanched-aws.x86_64-unknown-linux-gnu
 
 ##
 # if compiled locally
-AVALANCHE_BIN_PATH=${HOME}/go/src/github.com/ava-labs/avalanchego/build/avalanchego
-# if downloaded from https://github.com/ava-labs/avalanche-ops/releases
-VERSION=1.9.7
-AVALANCHE_BIN_PATH=/tmp/avalanchego-v${VERSION}/avalanchego
+LUXD_BIN_PATH=${HOME}/go/src/github.com/luxfi/node/build/luxd
+# if downloaded from https://github.com/luxfi/node/releases
+VERSION=1.23.23
+LUXD_BIN_PATH=/tmp/luxd-v${VERSION}/luxd
 
 ##
 # if compiled locally
-AVALANCHE_PLUGINS_DIR_PATH=${HOME}/go/src/github.com/ava-labs/avalanchego/build/plugins
-# https://github.com/ava-labs/avalanchego/releases
-VERSION=1.9.7
-DOWNLOAD_URL=https://github.com/ava-labs/avalanchego/releases/download/
-rm -rf /tmp/avalanchego.tar.gz /tmp/avalanchego-v${VERSION}
-curl -L ${DOWNLOAD_URL}/v${VERSION}/avalanchego-linux-amd64-v${VERSION}.tar.gz -o /tmp/avalanchego.tar.gz
-tar xzvf /tmp/avalanchego.tar.gz -C /tmp
-find /tmp/avalanchego-v${VERSION}
-# if downloaded from https://github.com/ava-labs/avalanche-ops/releases
-VERSION=1.9.7
-AVALANCHE_PLUGINS_DIR_PATH=/tmp/avalanchego-v${VERSION}/plugins
+LUXD_PLUGINS_DIR_PATH=${HOME}/go/src/github.com/luxfi/node/build/plugins
+# https://github.com/luxfi/node/releases
+VERSION=1.23.23
+DOWNLOAD_URL=https://github.com/luxfi/node/releases/download/
+rm -rf /tmp/luxd.tar.gz /tmp/luxd-v${VERSION}
+curl -L ${DOWNLOAD_URL}/v${VERSION}/luxd-linux-amd64-v${VERSION}.tar.gz -o /tmp/luxd.tar.gz
+tar xzvf /tmp/luxd.tar.gz -C /tmp
+find /tmp/luxd-v${VERSION}
+# if downloaded from https://github.com/luxfi/node/releases
+VERSION=1.23.23
+LUXD_PLUGINS_DIR_PATH=/tmp/luxd-v${VERSION}/plugins
 
 cd ${HOME}/avalanche-ops
 ./target/release/avalancheup-aws default-spec \
 --region us-west-2 \
 --upload-artifacts-avalanched-aws-local-bin ${AVALANCHED_BIN_PATH} \
---upload-artifacts-avalanchego-local-bin ${AVALANCHE_BIN_PATH} \
---upload-artifacts-plugin-local-dir ${AVALANCHE_PLUGINS_DIR_PATH} \
+--upload-artifacts-avalanchego-local-bin ${LUXD_BIN_PATH} \
+--upload-artifacts-plugin-local-dir ${LUXD_PLUGINS_DIR_PATH} \
 --network-name custom \
 --avalanchego-log-level INFO \
 --avalanchego-http-tls-enabled \
@@ -618,9 +630,9 @@ cd ${HOME}/avalanche-ops
 ./target/release/avalancheup-aws apply --spec-file-path [YOUR_SPEC_PATH]
 ```
 
-### Custom network with NO initial database state, with snow-machine
+### Custom network with NO initial database state, with quasar-machine
 
-See https://pkg.go.dev/github.com/ava-labs/snow-machine for more.
+See https://pkg.go.dev/github.com/luxfi/node/snow for more (Quasar consensus).
 
 ```bash
 ##
@@ -635,32 +647,32 @@ AVALANCHED_BIN_PATH=${HOME}/avalanched-aws.x86_64-unknown-linux-gnu
 
 ##
 # if compiled locally
-AVALANCHE_BIN_PATH=${HOME}/go/src/github.com/ava-labs/avalanchego/build/avalanchego
-# if downloaded from https://github.com/ava-labs/avalanche-ops/releases
-VERSION=1.9.7
-AVALANCHE_BIN_PATH=/tmp/avalanchego-v${VERSION}/avalanchego
+LUXD_BIN_PATH=${HOME}/go/src/github.com/luxfi/node/build/luxd
+# if downloaded from https://github.com/luxfi/node/releases
+VERSION=1.23.23
+LUXD_BIN_PATH=/tmp/luxd-v${VERSION}/luxd
 
 ##
 # if compiled locally
-AVALANCHE_PLUGINS_DIR_PATH=${HOME}/go/src/github.com/ava-labs/avalanchego/build/plugins
-# https://github.com/ava-labs/avalanchego/releases
-VERSION=1.9.7
-DOWNLOAD_URL=https://github.com/ava-labs/avalanchego/releases/download/
-rm -rf /tmp/avalanchego.tar.gz /tmp/avalanchego-v${VERSION}
-curl -L ${DOWNLOAD_URL}/v${VERSION}/avalanchego-linux-amd64-v${VERSION}.tar.gz -o /tmp/avalanchego.tar.gz
-tar xzvf /tmp/avalanchego.tar.gz -C /tmp
-find /tmp/avalanchego-v${VERSION}
-# if downloaded from https://github.com/ava-labs/avalanche-ops/releases
-VERSION=1.9.7
-AVALANCHE_PLUGINS_DIR_PATH=/tmp/avalanchego-v${VERSION}/plugins
+LUXD_PLUGINS_DIR_PATH=${HOME}/go/src/github.com/luxfi/node/build/plugins
+# https://github.com/luxfi/node/releases
+VERSION=1.23.23
+DOWNLOAD_URL=https://github.com/luxfi/node/releases/download/
+rm -rf /tmp/luxd.tar.gz /tmp/luxd-v${VERSION}
+curl -L ${DOWNLOAD_URL}/v${VERSION}/luxd-linux-amd64-v${VERSION}.tar.gz -o /tmp/luxd.tar.gz
+tar xzvf /tmp/luxd.tar.gz -C /tmp
+find /tmp/luxd-v${VERSION}
+# if downloaded from https://github.com/luxfi/node/releases
+VERSION=1.23.23
+LUXD_PLUGINS_DIR_PATH=/tmp/luxd-v${VERSION}/plugins
 
 cd ${HOME}/avalanche-ops
 ./target/release/avalancheup-aws default-spec \
 --region us-west-2 \
 --upload-artifacts-avalanched-aws-local-bin ${AVALANCHED_BIN_PATH} \
---upload-artifacts-avalanchego-local-bin ${AVALANCHE_BIN_PATH} \
---upload-artifacts-plugin-local-dir ${AVALANCHE_PLUGINS_DIR_PATH} \
---upload-artifacts-snow-machine-file-path ${HOME}/coreth.json \
+--upload-artifacts-avalanchego-local-bin ${LUXD_BIN_PATH} \
+--upload-artifacts-plugin-local-dir ${LUXD_PLUGINS_DIR_PATH} \
+--upload-artifacts-snow-machine-file-path ${HOME}/evm.json \
 --network-name custom \
 ---keys-to-generate 5 \
 --avalanchego-log-level INFO
@@ -675,36 +687,36 @@ TODO: network forking
 
 ### Custom network with NO initial database state, with subnet-evm
 
-First, make sure you have `subnet-evm` installed in your local machine (for uploads). 
+First, make sure you have `subnet-evm` installed in your local machine (for uploads).
 
 Install the following:
-- https://github.com/ava-labs/subnet-evm
-- https://github.com/ava-labs/subnet-cli
+- https://github.com/luxfi/evm
+- https://github.com/luxfi/cli
 
-See ["install `subnet-evm` in the custom network"](./example-aws.md#optional-install-subnet-evm-in-the-custom-network) for demo.
+See ["install `evm` in the custom network"](./example-aws.md#optional-install-subnet-evm-in-the-custom-network) for demo.
 
 ```bash
-rm -rf ${HOME}/go/src/github.com/ava-labs/avalanchego/build
-cd ${HOME}/go/src/github.com/ava-labs/avalanchego
+rm -rf ${HOME}/go/src/github.com/luxfi/node/build
+cd ${HOME}/go/src/github.com/luxfi/node
 CC=x86_64-linux-musl-gcc \
 CXX=x86_64-linux-musl-g++ \
 CGO_ENABLED=1 \
 STATIC_COMPILATION=1 \
 GOOS=linux GOARCH=amd64 ./scripts/build.sh
 
-cd ${HOME}/go/src/github.com/ava-labs/subnet-evm
+cd ${HOME}/go/src/github.com/luxfi/evm
 CC=x86_64-linux-musl-gcc \
 CXX=x86_64-linux-musl-g++ \
 CGO_ENABLED=1 \
 STATIC_COMPILATION=1 \
 GOOS=linux GOARCH=amd64 ./scripts/build.sh \
-${HOME}/go/src/github.com/ava-labs/avalanchego/build/plugins/srEXiWaHuhNyGwPUi444Tu47ZEDwxTWrbQiuD7FmgSAQ6X7Dy
+${HOME}/go/src/github.com/luxfi/node/build/plugins/srEXiWaHuhNyGwPUi444Tu47ZEDwxTWrbQiuD7FmgSAQ6X7Dy
 ```
 
 ```bash
-cd ${HOME}/go/src/github.com/ava-labs/subnet-cli
+cd ${HOME}/go/src/github.com/luxfi/cli
 go install -v .
-subnet-cli create VMID subnetevm
+lux subnet create VMID subnetevm
 # srEXiWaHuhNyGwPUi444Tu47ZEDwxTWrbQiuD7FmgSAQ6X7Dy
 ```
 
@@ -721,24 +733,24 @@ AVALANCHED_BIN_PATH=${HOME}/avalanched-aws.x86_64-unknown-linux-gnu
 
 ##
 # if compiled locally
-AVALANCHE_BIN_PATH=${HOME}/go/src/github.com/ava-labs/avalanchego/build/avalanchego
-# if downloaded from https://github.com/ava-labs/avalanche-ops/releases
-VERSION=1.9.7
-AVALANCHE_BIN_PATH=/tmp/avalanchego-v${VERSION}/avalanchego
+LUXD_BIN_PATH=${HOME}/go/src/github.com/luxfi/node/build/luxd
+# if downloaded from https://github.com/luxfi/node/releases
+VERSION=1.23.23
+LUXD_BIN_PATH=/tmp/luxd-v${VERSION}/luxd
 
 ##
 # if compiled locally
-AVALANCHE_PLUGINS_DIR_PATH=${HOME}/go/src/github.com/ava-labs/avalanchego/build/plugins
-# https://github.com/ava-labs/avalanchego/releases
-VERSION=1.9.7
-DOWNLOAD_URL=https://github.com/ava-labs/avalanchego/releases/download/
-rm -rf /tmp/avalanchego.tar.gz /tmp/avalanchego-v${VERSION}
-curl -L ${DOWNLOAD_URL}/v${VERSION}/avalanchego-linux-amd64-v${VERSION}.tar.gz -o /tmp/avalanchego.tar.gz
-tar xzvf /tmp/avalanchego.tar.gz -C /tmp
-find /tmp/avalanchego-v${VERSION}
-# if downloaded from https://github.com/ava-labs/avalanche-ops/releases
-VERSION=1.9.7
-AVALANCHE_PLUGINS_DIR_PATH=/tmp/avalanchego-v${VERSION}/plugins
+LUXD_PLUGINS_DIR_PATH=${HOME}/go/src/github.com/luxfi/node/build/plugins
+# https://github.com/luxfi/node/releases
+VERSION=1.23.23
+DOWNLOAD_URL=https://github.com/luxfi/node/releases/download/
+rm -rf /tmp/luxd.tar.gz /tmp/luxd-v${VERSION}
+curl -L ${DOWNLOAD_URL}/v${VERSION}/luxd-linux-amd64-v${VERSION}.tar.gz -o /tmp/luxd.tar.gz
+tar xzvf /tmp/luxd.tar.gz -C /tmp
+find /tmp/luxd-v${VERSION}
+# if downloaded from https://github.com/luxfi/node/releases
+VERSION=1.23.23
+LUXD_PLUGINS_DIR_PATH=/tmp/luxd-v${VERSION}/plugins
 
 
 
@@ -749,21 +761,21 @@ cd ${HOME}/avalanche-ops
 ./target/release/avalancheup-aws default-spec \
 --region us-west-2 \
 --upload-artifacts-avalanched-aws-local-bin ${AVALANCHED_BIN_PATH} \
---upload-artifacts-avalanchego-local-bin ${AVALANCHE_BIN_PATH} \
---upload-artifacts-plugin-local-dir ${AVALANCHE_PLUGINS_DIR_PATH} \
+--upload-artifacts-avalanchego-local-bin ${LUXD_BIN_PATH} \
+--upload-artifacts-plugin-local-dir ${LUXD_PLUGINS_DIR_PATH} \
 --network-name custom \
 --avalanchego-log-level INFO \
 --subnet-evms 1
 
 #####
-AVALANCHE_BIN_PATH=${HOME}/go/src/github.com/ava-labs/avalanchego/build/avalanchego
-AVALANCHE_PLUGINS_DIR_PATH=${HOME}/go/src/github.com/ava-labs/avalanchego/build/plugins
+LUXD_BIN_PATH=${HOME}/go/src/github.com/luxfi/node/build/luxd
+LUXD_PLUGINS_DIR_PATH=${HOME}/go/src/github.com/luxfi/node/build/plugins
 rm -rf ${HOME}/subnet-evm-test-keys
 cd ${HOME}/avalanche-ops
 ./target/release/avalancheup-aws default-spec \
 --region us-west-2 \
---upload-artifacts-avalanchego-local-bin ${AVALANCHE_BIN_PATH} \
---upload-artifacts-plugin-local-dir ${AVALANCHE_PLUGINS_DIR_PATH} \
+--upload-artifacts-avalanchego-local-bin ${LUXD_BIN_PATH} \
+--upload-artifacts-plugin-local-dir ${LUXD_PLUGINS_DIR_PATH} \
 --instance-mode spot \
 --network-name custom \
 --avalanchego-log-level INFO \
@@ -772,14 +784,14 @@ cd ${HOME}/avalanche-ops
 --subnet-evms 1
 
 #####
-AVALANCHE_BIN_PATH=${HOME}/go/src/github.com/ava-labs/avalanchego/build/avalanchego
-AVALANCHE_PLUGINS_DIR_PATH=${HOME}/go/src/github.com/ava-labs/avalanchego/build/plugins
+LUXD_BIN_PATH=${HOME}/go/src/github.com/luxfi/node/build/luxd
+LUXD_PLUGINS_DIR_PATH=${HOME}/go/src/github.com/luxfi/node/build/plugins
 rm -rf ${HOME}/subnet-evm-test-keys
 cd ${HOME}/avalanche-ops
 ./target/release/avalancheup-aws default-spec \
 --region us-west-2 \
---upload-artifacts-avalanchego-local-bin ${AVALANCHE_BIN_PATH} \
---upload-artifacts-plugin-local-dir ${AVALANCHE_PLUGINS_DIR_PATH} \
+--upload-artifacts-avalanchego-local-bin ${LUXD_BIN_PATH} \
+--upload-artifacts-plugin-local-dir ${LUXD_PLUGINS_DIR_PATH} \
 --instance-mode spot \
 --network-name custom \
 --avalanchego-log-level INFO \
@@ -837,7 +849,7 @@ chmod 400 /Users/gyuho.lee/aops-custom-202203-2wh8w4-ec2-access.key
 
 ```bash
 # when "55Wgss7ie3Xo42pmt85Y2FwbHo4tgwpgxSeyLAhtD4ivXjto1" is the blockchain ID
-# for instance, the subnet-cli will return
+# for instance, the lux cli will return
 # created blockchain "55Wgss7ie3Xo42pmt85Y2FwbHo4tgwpgxSeyLAhtD4ivXjto1" (took 179.72724ms)
 cat [YOUR_SPEC_PATH] | grep metamask_rpc:
 
@@ -846,10 +858,10 @@ cat [YOUR_SPEC_PATH] | grep metamask_rpc:
 http://[PUBLIC-DNS]:9650/ext/bc/55Wgss7ie3Xo42pmt85Y2FwbHo4tgwpgxSeyLAhtD4ivXjto1/rpc
 
 # check the logs
-sudo tail /var/log/avalanchego/55Wgss7ie3Xo42pmt85Y2FwbHo4tgwpgxSeyLAhtD4ivXjto1.log
+sudo tail /var/log/lux/55Wgss7ie3Xo42pmt85Y2FwbHo4tgwpgxSeyLAhtD4ivXjto1.log
 ```
 
-### Fuji network with NO initial database state
+### Testnet network with NO initial database state
 
 This will sync from peer (rather than downloading from S3):
 
@@ -866,32 +878,32 @@ AVALANCHED_BIN_PATH=${HOME}/avalanched-aws.x86_64-unknown-linux-gnu
 
 ##
 # if compiled locally
-AVALANCHE_BIN_PATH=${HOME}/go/src/github.com/ava-labs/avalanchego/build/avalanchego
-# if downloaded from https://github.com/ava-labs/avalanche-ops/releases
-VERSION=1.9.7
-AVALANCHE_BIN_PATH=/tmp/avalanchego-v${VERSION}/avalanchego
+LUXD_BIN_PATH=${HOME}/go/src/github.com/luxfi/node/build/luxd
+# if downloaded from https://github.com/luxfi/node/releases
+VERSION=1.23.23
+LUXD_BIN_PATH=/tmp/luxd-v${VERSION}/luxd
 
 ##
 # if compiled locally
-AVALANCHE_PLUGINS_DIR_PATH=${HOME}/go/src/github.com/ava-labs/avalanchego/build/plugins
-# https://github.com/ava-labs/avalanchego/releases
-VERSION=1.9.7
-DOWNLOAD_URL=https://github.com/ava-labs/avalanchego/releases/download/
-rm -rf /tmp/avalanchego.tar.gz /tmp/avalanchego-v${VERSION}
-curl -L ${DOWNLOAD_URL}/v${VERSION}/avalanchego-linux-amd64-v${VERSION}.tar.gz -o /tmp/avalanchego.tar.gz
-tar xzvf /tmp/avalanchego.tar.gz -C /tmp
-find /tmp/avalanchego-v${VERSION}
-# if downloaded from https://github.com/ava-labs/avalanche-ops/releases
-VERSION=1.9.7
-AVALANCHE_PLUGINS_DIR_PATH=/tmp/avalanchego-v${VERSION}/plugins
+LUXD_PLUGINS_DIR_PATH=${HOME}/go/src/github.com/luxfi/node/build/plugins
+# https://github.com/luxfi/node/releases
+VERSION=1.23.23
+DOWNLOAD_URL=https://github.com/luxfi/node/releases/download/
+rm -rf /tmp/luxd.tar.gz /tmp/luxd-v${VERSION}
+curl -L ${DOWNLOAD_URL}/v${VERSION}/luxd-linux-amd64-v${VERSION}.tar.gz -o /tmp/luxd.tar.gz
+tar xzvf /tmp/luxd.tar.gz -C /tmp
+find /tmp/luxd-v${VERSION}
+# if downloaded from https://github.com/luxfi/node/releases
+VERSION=1.23.23
+LUXD_PLUGINS_DIR_PATH=/tmp/luxd-v${VERSION}/plugins
 
 cd ${HOME}/avalanche-ops
 ./target/release/avalancheup-aws default-spec \
 --region us-west-2 \
 --upload-artifacts-avalanched-aws-local-bin ${AVALANCHED_BIN_PATH} \
---upload-artifacts-avalanchego-local-bin ${AVALANCHE_BIN_PATH} \
---upload-artifacts-plugin-local-dir ${AVALANCHE_PLUGINS_DIR_PATH} \
---network-name fuji \
+--upload-artifacts-avalanchego-local-bin ${LUXD_BIN_PATH} \
+--upload-artifacts-plugin-local-dir ${LUXD_PLUGINS_DIR_PATH} \
+--network-name testnet \
 --avalanchego-log-level INFO
 
 
@@ -904,13 +916,13 @@ cd ${HOME}/avalanche-ops
 cd ${HOME}/avalanche-ops
 ./target/release/avalancheup-aws default-spec \
 --region us-west-2 \
---network-name fuji \
+--network-name testnet \
 --avalanchego-log-level INFO
 
 cd ${HOME}/avalanche-ops
 ./target/release/avalancheup-aws default-spec \
 --region us-west-2 \
---network-name fuji \
+--network-name testnet \
 --instance-mode spot \
 --avalanchego-log-level INFO
 
@@ -924,7 +936,7 @@ cd ${HOME}/avalanche-ops
 ./target/release/avalancheup-aws apply --spec-file-path [YOUR_SPEC_PATH]
 ```
 
-### Fuji network with NO initial database state, with "avalanched-aws" lite mode
+### Testnet network with NO initial database state, with "avalanched-aws" lite mode
 
 This will sync from peer (rather than downloading from S3):
 
@@ -945,14 +957,14 @@ cd ${HOME}/avalanche-ops
 --region us-west-2 \
 --avalanched-use-default-config \
 --upload-artifacts-avalanched-aws-local-bin ${AVALANCHED_BIN_PATH} \
---network-name fuji \
+--network-name testnet \
 --avalanchego-log-level INFO
 
 cd ${HOME}/avalanche-ops
 ./target/release/avalancheup-aws apply --spec-file-path [YOUR_SPEC_PATH]
 ```
 
-### Fuji network with NO initial database state, with fast-sync
+### Testnet network with NO initial database state, with fast-sync
 
 This will fast-sync from peer (rather than downloading from S3):
 
@@ -969,32 +981,32 @@ AVALANCHED_BIN_PATH=${HOME}/avalanched-aws.x86_64-unknown-linux-gnu
 
 ##
 # if compiled locally
-AVALANCHE_BIN_PATH=${HOME}/go/src/github.com/ava-labs/avalanchego/build/avalanchego
-# if downloaded from https://github.com/ava-labs/avalanche-ops/releases
-VERSION=1.9.7
-AVALANCHE_BIN_PATH=/tmp/avalanchego-v${VERSION}/avalanchego
+LUXD_BIN_PATH=${HOME}/go/src/github.com/luxfi/node/build/luxd
+# if downloaded from https://github.com/luxfi/node/releases
+VERSION=1.23.23
+LUXD_BIN_PATH=/tmp/luxd-v${VERSION}/luxd
 
 ##
 # if compiled locally
-AVALANCHE_PLUGINS_DIR_PATH=${HOME}/go/src/github.com/ava-labs/avalanchego/build/plugins
-# https://github.com/ava-labs/avalanchego/releases
-VERSION=1.9.7
-DOWNLOAD_URL=https://github.com/ava-labs/avalanchego/releases/download/
-rm -rf /tmp/avalanchego.tar.gz /tmp/avalanchego-v${VERSION}
-curl -L ${DOWNLOAD_URL}/v${VERSION}/avalanchego-linux-amd64-v${VERSION}.tar.gz -o /tmp/avalanchego.tar.gz
-tar xzvf /tmp/avalanchego.tar.gz -C /tmp
-find /tmp/avalanchego-v${VERSION}
-# if downloaded from https://github.com/ava-labs/avalanche-ops/releases
-VERSION=1.9.7
-AVALANCHE_PLUGINS_DIR_PATH=/tmp/avalanchego-v${VERSION}/plugins
+LUXD_PLUGINS_DIR_PATH=${HOME}/go/src/github.com/luxfi/node/build/plugins
+# https://github.com/luxfi/node/releases
+VERSION=1.23.23
+DOWNLOAD_URL=https://github.com/luxfi/node/releases/download/
+rm -rf /tmp/luxd.tar.gz /tmp/luxd-v${VERSION}
+curl -L ${DOWNLOAD_URL}/v${VERSION}/luxd-linux-amd64-v${VERSION}.tar.gz -o /tmp/luxd.tar.gz
+tar xzvf /tmp/luxd.tar.gz -C /tmp
+find /tmp/luxd-v${VERSION}
+# if downloaded from https://github.com/luxfi/node/releases
+VERSION=1.23.23
+LUXD_PLUGINS_DIR_PATH=/tmp/luxd-v${VERSION}/plugins
 
 cd ${HOME}/avalanche-ops
 ./target/release/avalancheup-aws default-spec \
 --region us-west-2 \
 --upload-artifacts-avalanched-aws-local-bin ${AVALANCHED_BIN_PATH} \
---upload-artifacts-avalanchego-local-bin ${AVALANCHE_BIN_PATH} \
---upload-artifacts-plugin-local-dir ${AVALANCHE_PLUGINS_DIR_PATH} \
---network-name fuji \
+--upload-artifacts-avalanchego-local-bin ${LUXD_BIN_PATH} \
+--upload-artifacts-plugin-local-dir ${LUXD_PLUGINS_DIR_PATH} \
+--network-name testnet \
 --avalanchego-log-level INFO \
 --avalanchego-state-sync-ids ... \
 --avalanchego-state-sync-ips ... \
@@ -1021,31 +1033,31 @@ AVALANCHED_BIN_PATH=${HOME}/avalanched-aws.x86_64-unknown-linux-gnu
 
 ##
 # if compiled locally
-AVALANCHE_BIN_PATH=${HOME}/go/src/github.com/ava-labs/avalanchego/build/avalanchego
-# if downloaded from https://github.com/ava-labs/avalanche-ops/releases
-VERSION=1.9.7
-AVALANCHE_BIN_PATH=/tmp/avalanchego-v${VERSION}/avalanchego
+LUXD_BIN_PATH=${HOME}/go/src/github.com/luxfi/node/build/luxd
+# if downloaded from https://github.com/luxfi/node/releases
+VERSION=1.23.23
+LUXD_BIN_PATH=/tmp/luxd-v${VERSION}/luxd
 
 ##
 # if compiled locally
-AVALANCHE_PLUGINS_DIR_PATH=${HOME}/go/src/github.com/ava-labs/avalanchego/build/plugins
-# https://github.com/ava-labs/avalanchego/releases
-VERSION=1.9.7
-DOWNLOAD_URL=https://github.com/ava-labs/avalanchego/releases/download/
-rm -rf /tmp/avalanchego.tar.gz /tmp/avalanchego-v${VERSION}
-curl -L ${DOWNLOAD_URL}/v${VERSION}/avalanchego-linux-amd64-v${VERSION}.tar.gz -o /tmp/avalanchego.tar.gz
-tar xzvf /tmp/avalanchego.tar.gz -C /tmp
-find /tmp/avalanchego-v${VERSION}
-# if downloaded from https://github.com/ava-labs/avalanche-ops/releases
-VERSION=1.9.7
-AVALANCHE_PLUGINS_DIR_PATH=/tmp/avalanchego-v${VERSION}/plugins
+LUXD_PLUGINS_DIR_PATH=${HOME}/go/src/github.com/luxfi/node/build/plugins
+# https://github.com/luxfi/node/releases
+VERSION=1.23.23
+DOWNLOAD_URL=https://github.com/luxfi/node/releases/download/
+rm -rf /tmp/luxd.tar.gz /tmp/luxd-v${VERSION}
+curl -L ${DOWNLOAD_URL}/v${VERSION}/luxd-linux-amd64-v${VERSION}.tar.gz -o /tmp/luxd.tar.gz
+tar xzvf /tmp/luxd.tar.gz -C /tmp
+find /tmp/luxd-v${VERSION}
+# if downloaded from https://github.com/luxfi/node/releases
+VERSION=1.23.23
+LUXD_PLUGINS_DIR_PATH=/tmp/luxd-v${VERSION}/plugins
 
 cd ${HOME}/avalanche-ops
 ./target/release/avalancheup-aws default-spec \
 --region us-west-2 \
 --upload-artifacts-avalanched-aws-local-bin ${AVALANCHED_BIN_PATH} \
---upload-artifacts-avalanchego-local-bin ${AVALANCHE_BIN_PATH} \
---upload-artifacts-plugin-local-dir ${AVALANCHE_PLUGINS_DIR_PATH} \
+--upload-artifacts-avalanchego-local-bin ${LUXD_BIN_PATH} \
+--upload-artifacts-plugin-local-dir ${LUXD_PLUGINS_DIR_PATH} \
 --network-name mainnet \
 --avalanchego-log-level INFO
 
@@ -1069,9 +1081,9 @@ cd ${HOME}/avalanche-ops
 ./target/release/avalancheup-aws apply --spec-file-path [YOUR_SPEC_PATH]
 ```
 
-## FAQ: What if I want to control the systemd serviec manually?
+## FAQ: What if I want to control the systemd service manually?
 
-`avalancheup` can help you set up infrastructure, but you may want full control over avalanche nodes for some tweaks. You can disable all systemd services for `avalancheup` as follows:
+`avalancheup` can help you set up infrastructure, but you may want full control over Lux nodes for some tweaks. You can disable all systemd services for `avalancheup` as follows:
 
 ```bash
 sudo systemctl cat avalanched.service
@@ -1082,11 +1094,11 @@ sudo journalctl -f -u avalanched.service
 sudo journalctl -u avalanched.service --lines=10 --no-pager
 sudo tail -f /var/log/avalanched-aws.log
 
-sudo systemctl cat avalanchego.service
-sudo systemctl status avalanchego.service
-sudo systemctl stop avalanchego.service
-sudo systemctl disable avalanchego.service
-sudo journalctl -f -u avalanchego.service
-sudo journalctl -u avalanchego.service --lines=10 --no-pager
-sudo tail -f /var/log/avalanchego/avalanchego.log
+sudo systemctl cat luxd.service
+sudo systemctl status luxd.service
+sudo systemctl stop luxd.service
+sudo systemctl disable luxd.service
+sudo journalctl -f -u luxd.service
+sudo journalctl -u luxd.service --lines=10 --no-pager
+sudo tail -f /var/log/lux/luxd.log
 ```
