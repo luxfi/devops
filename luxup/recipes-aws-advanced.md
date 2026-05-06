@@ -710,14 +710,14 @@ CXX=x86_64-linux-musl-g++ \
 CGO_ENABLED=1 \
 STATIC_COMPILATION=1 \
 GOOS=linux GOARCH=amd64 ./scripts/build.sh \
-${HOME}/go/src/github.com/luxfi/node/build/plugins/srEXiWaHuhNyGwPUi444Tu47ZEDwxTWrbQiuD7FmgSAQ6X7Dy
+${HOME}/go/src/github.com/luxfi/node/build/plugins/mgj786NP7uDwBCcq6YwThhaN8FLyybkCa4zBWTQbNgmK6k9A6
 ```
 
 ```bash
 cd ${HOME}/go/src/github.com/luxfi/cli
 go install -v .
 lux subnet create VMID subnetevm
-# srEXiWaHuhNyGwPUi444Tu47ZEDwxTWrbQiuD7FmgSAQ6X7Dy
+# mgj786NP7uDwBCcq6YwThhaN8FLyybkCa4zBWTQbNgmK6k9A6
 ```
 
 ```bash

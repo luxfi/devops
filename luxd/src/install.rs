@@ -484,7 +484,10 @@ fn reload_systemd() -> Result<()> {
 fn extract_vm_id(subnet_id: &str) -> Result<String> {
     // In production, this would be fetched from the P-chain
     // For now, use the subnet ID as VM ID placeholder
-    if subnet_id.starts_with("subnetevm-") || subnet_id.starts_with("srEXiWaH") {
+    // Lux EVM canonical VM ID (CB58 of ids.ID{'e','v','m'}).
+    // Legacy "subnetevm-" + "srEXiWaH" prefixes kept only for upgrade detection
+    // from old installs — never produced fresh.
+    if subnet_id.starts_with("subnetevm-") || subnet_id.starts_with("srEXiWaH") || subnet_id.starts_with("mgj786NP") {
         Ok(subnet_id.to_string())
     } else {
         // Hash the subnet ID to create a consistent VM ID
