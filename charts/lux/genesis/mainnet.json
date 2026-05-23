@@ -4,8 +4,8 @@
   "startTime": 1766704800,
   "allocations": [
     {
-      "ethAddr": "0x9011E888251AB053B7bD1cdB598Db4f9DEd94714",
-      "luxAddr": "P-lux1c7wevm4667l4umtzh93r25wpxlpsadkhka6gv6",
+      "evmAddr": "0x9011E888251AB053B7bD1cdB598Db4f9DEd94714",
+      "utxoAddr": "P-lux1c7wevm4667l4umtzh93r25wpxlpsadkhka6gv6",
       "initialAmount": 0,
       "unlockSchedule": [
         {
@@ -411,8 +411,8 @@
       ]
     },
     {
-      "ethAddr": "0xEAbCC110fAcBfebabC66Ad6f9E7B67288e720B59",
-      "luxAddr": "P-lux1p5e87uz8yaaxr0lzvfn7h2nhzh3xq3gl87u3d9",
+      "evmAddr": "0xEAbCC110fAcBfebabC66Ad6f9E7B67288e720B59",
+      "utxoAddr": "P-lux1p5e87uz8yaaxr0lzvfn7h2nhzh3xq3gl87u3d9",
       "initialAmount": 0,
       "unlockSchedule": [
         {
@@ -818,8 +818,8 @@
       ]
     },
     {
-      "ethAddr": "0x8d5081153aE1cfb41f5c932fe0b6Beb7E159cF84",
-      "luxAddr": "P-lux1xcj7g6365h29dvy94teazldpnv4g2md98xrrpq",
+      "evmAddr": "0x8d5081153aE1cfb41f5c932fe0b6Beb7E159cF84",
+      "utxoAddr": "P-lux1xcj7g6365h29dvy94teazldpnv4g2md98xrrpq",
       "initialAmount": 0,
       "unlockSchedule": [
         {
@@ -1225,8 +1225,8 @@
       ]
     },
     {
-      "ethAddr": "0xf8f12D0592e6d1bFe92ee16CaBCC4a6F26dAAe23",
-      "luxAddr": "P-lux153levg0gruzj5wfw3snmgpr335lvcs4rzj3vwm",
+      "evmAddr": "0xf8f12D0592e6d1bFe92ee16CaBCC4a6F26dAAe23",
+      "utxoAddr": "P-lux153levg0gruzj5wfw3snmgpr335lvcs4rzj3vwm",
       "initialAmount": 0,
       "unlockSchedule": [
         {
@@ -1632,8 +1632,8 @@
       ]
     },
     {
-      "ethAddr": "0xFb66808f708e1d4D7D43a8c75596e84f94e06806",
-      "luxAddr": "P-lux1yp3v5ktlwt68gdwz0ke9ldvsf49f6rphjkpysk",
+      "evmAddr": "0xFb66808f708e1d4D7D43a8c75596e84f94e06806",
+      "utxoAddr": "P-lux1yp3v5ktlwt68gdwz0ke9ldvsf49f6rphjkpysk",
       "initialAmount": 0,
       "unlockSchedule": [
         {
@@ -2039,8 +2039,8 @@
       ]
     },
     {
-      "ethAddr": "0x313CF291c069C58D6bd61B0D672673462B8951bD",
-      "luxAddr": "P-lux10w8xzpq6q6g6wwfyk2ahz6d056mjuj65z7maka",
+      "evmAddr": "0x313CF291c069C58D6bd61B0D672673462B8951bD",
+      "utxoAddr": "P-lux10w8xzpq6q6g6wwfyk2ahz6d056mjuj65z7maka",
       "initialAmount": 0,
       "unlockSchedule": [
         {
@@ -2446,8 +2446,8 @@
       ]
     },
     {
-      "ethAddr": "0xf7f52257a6143cE6BbD12A98eF2B0a3d0C648079",
-      "luxAddr": "P-lux1r88jta92ms3w8jzg3zd5sa6k44xyxtykac0d5l",
+      "evmAddr": "0xf7f52257a6143cE6BbD12A98eF2B0a3d0C648079",
+      "utxoAddr": "P-lux1r88jta92ms3w8jzg3zd5sa6k44xyxtykac0d5l",
       "initialAmount": 0,
       "unlockSchedule": [
         {
@@ -2853,8 +2853,8 @@
       ]
     },
     {
-      "ethAddr": "0xCA92ad0C91bd8DE640B9dAFfEB338ac908725142",
-      "luxAddr": "P-lux1gszvdz4kdggm2hxtrmfqpxu3e9mht9hul45d3f",
+      "evmAddr": "0xCA92ad0C91bd8DE640B9dAFfEB338ac908725142",
+      "utxoAddr": "P-lux1gszvdz4kdggm2hxtrmfqpxu3e9mht9hul45d3f",
       "initialAmount": 0,
       "unlockSchedule": [
         {
@@ -3260,8 +3260,8 @@
       ]
     },
     {
-      "ethAddr": "0xB5B325df519eB58B7223d85aaeac8b56aB05f3d6",
-      "luxAddr": "P-lux15ne983tht00567qzmkvq57fywdcqwq8jtkd5k4",
+      "evmAddr": "0xB5B325df519eB58B7223d85aaeac8b56aB05f3d6",
+      "utxoAddr": "P-lux15ne983tht00567qzmkvq57fywdcqwq8jtkd5k4",
       "initialAmount": 0,
       "unlockSchedule": [
         {
@@ -3667,8 +3667,8 @@
       ]
     },
     {
-      "ethAddr": "0xcf5288bEe8d8F63511C389D5015185FDEDe30e54",
-      "luxAddr": "P-lux1tz0pf4zpgaav4g9qw46pt60eq3vhh46x9clvgl",
+      "evmAddr": "0xcf5288bEe8d8F63511C389D5015185FDEDe30e54",
+      "utxoAddr": "P-lux1tz0pf4zpgaav4g9qw46pt60eq3vhh46x9clvgl",
       "initialAmount": 0,
       "unlockSchedule": [
         {
@@ -4074,62 +4074,62 @@
       ]
     },
     {
-      "ethAddr": "0x9011E888251AB053B7bD1cdB598Db4f9DEd94714",
-      "luxAddr": "X-lux1c7wevm4667l4umtzh93r25wpxlpsadkhka6gv6",
+      "evmAddr": "0x9011E888251AB053B7bD1cdB598Db4f9DEd94714",
+      "utxoAddr": "X-lux1c7wevm4667l4umtzh93r25wpxlpsadkhka6gv6",
       "initialAmount": 1000000000000000,
       "unlockSchedule": []
     },
     {
-      "ethAddr": "0xEAbCC110fAcBfebabC66Ad6f9E7B67288e720B59",
-      "luxAddr": "X-lux1p5e87uz8yaaxr0lzvfn7h2nhzh3xq3gl87u3d9",
+      "evmAddr": "0xEAbCC110fAcBfebabC66Ad6f9E7B67288e720B59",
+      "utxoAddr": "X-lux1p5e87uz8yaaxr0lzvfn7h2nhzh3xq3gl87u3d9",
       "initialAmount": 1000000000000000,
       "unlockSchedule": []
     },
     {
-      "ethAddr": "0x8d5081153aE1cfb41f5c932fe0b6Beb7E159cF84",
-      "luxAddr": "X-lux1xcj7g6365h29dvy94teazldpnv4g2md98xrrpq",
+      "evmAddr": "0x8d5081153aE1cfb41f5c932fe0b6Beb7E159cF84",
+      "utxoAddr": "X-lux1xcj7g6365h29dvy94teazldpnv4g2md98xrrpq",
       "initialAmount": 1000000000000000,
       "unlockSchedule": []
     },
     {
-      "ethAddr": "0xf8f12D0592e6d1bFe92ee16CaBCC4a6F26dAAe23",
-      "luxAddr": "X-lux153levg0gruzj5wfw3snmgpr335lvcs4rzj3vwm",
+      "evmAddr": "0xf8f12D0592e6d1bFe92ee16CaBCC4a6F26dAAe23",
+      "utxoAddr": "X-lux153levg0gruzj5wfw3snmgpr335lvcs4rzj3vwm",
       "initialAmount": 1000000000000000,
       "unlockSchedule": []
     },
     {
-      "ethAddr": "0xFb66808f708e1d4D7D43a8c75596e84f94e06806",
-      "luxAddr": "X-lux1yp3v5ktlwt68gdwz0ke9ldvsf49f6rphjkpysk",
+      "evmAddr": "0xFb66808f708e1d4D7D43a8c75596e84f94e06806",
+      "utxoAddr": "X-lux1yp3v5ktlwt68gdwz0ke9ldvsf49f6rphjkpysk",
       "initialAmount": 1000000000000000,
       "unlockSchedule": []
     },
     {
-      "ethAddr": "0x313CF291c069C58D6bd61B0D672673462B8951bD",
-      "luxAddr": "X-lux10w8xzpq6q6g6wwfyk2ahz6d056mjuj65z7maka",
+      "evmAddr": "0x313CF291c069C58D6bd61B0D672673462B8951bD",
+      "utxoAddr": "X-lux10w8xzpq6q6g6wwfyk2ahz6d056mjuj65z7maka",
       "initialAmount": 1000000000000000,
       "unlockSchedule": []
     },
     {
-      "ethAddr": "0xf7f52257a6143cE6BbD12A98eF2B0a3d0C648079",
-      "luxAddr": "X-lux1r88jta92ms3w8jzg3zd5sa6k44xyxtykac0d5l",
+      "evmAddr": "0xf7f52257a6143cE6BbD12A98eF2B0a3d0C648079",
+      "utxoAddr": "X-lux1r88jta92ms3w8jzg3zd5sa6k44xyxtykac0d5l",
       "initialAmount": 1000000000000000,
       "unlockSchedule": []
     },
     {
-      "ethAddr": "0xCA92ad0C91bd8DE640B9dAFfEB338ac908725142",
-      "luxAddr": "X-lux1gszvdz4kdggm2hxtrmfqpxu3e9mht9hul45d3f",
+      "evmAddr": "0xCA92ad0C91bd8DE640B9dAFfEB338ac908725142",
+      "utxoAddr": "X-lux1gszvdz4kdggm2hxtrmfqpxu3e9mht9hul45d3f",
       "initialAmount": 1000000000000000,
       "unlockSchedule": []
     },
     {
-      "ethAddr": "0xB5B325df519eB58B7223d85aaeac8b56aB05f3d6",
-      "luxAddr": "X-lux15ne983tht00567qzmkvq57fywdcqwq8jtkd5k4",
+      "evmAddr": "0xB5B325df519eB58B7223d85aaeac8b56aB05f3d6",
+      "utxoAddr": "X-lux15ne983tht00567qzmkvq57fywdcqwq8jtkd5k4",
       "initialAmount": 1000000000000000,
       "unlockSchedule": []
     },
     {
-      "ethAddr": "0xcf5288bEe8d8F63511C389D5015185FDEDe30e54",
-      "luxAddr": "X-lux1tz0pf4zpgaav4g9qw46pt60eq3vhh46x9clvgl",
+      "evmAddr": "0xcf5288bEe8d8F63511C389D5015185FDEDe30e54",
+      "utxoAddr": "X-lux1tz0pf4zpgaav4g9qw46pt60eq3vhh46x9clvgl",
       "initialAmount": 1000000000000000,
       "unlockSchedule": []
     }
