@@ -3,7 +3,6 @@ resolver = "2"
 
 members = [
     "lux-core",
-    "lux-operator",
     "luxd",
     "luxup",
     "bench",
@@ -17,7 +16,7 @@ members = [
 version = "0.1.0"
 edition = "2021"
 license = "BSD-3-Clause"
-repository = "https://github.com/luxfi/lux-ops"
+repository = "https://github.com/luxfi/devops"
 
 [workspace.dependencies]
 # Async runtime

@@ -3208,29 +3208,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "lux-operator"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "async-trait",
- "axum",
- "chrono",
- "clap",
- "futures",
- "k8s-openapi",
- "kube",
- "reqwest",
- "schemars",
- "serde",
- "serde_json",
- "serde_yaml",
- "thiserror",
- "tokio",
- "tracing",
- "tracing-subscriber",
-]
-
-[[package]]
 name = "luxd-daemon"
 version = "0.1.0"
 dependencies = [
