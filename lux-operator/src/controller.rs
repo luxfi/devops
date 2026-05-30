@@ -1,8 +1,8 @@
 //! Kubernetes controller for LuxNetwork and LuxChain resources
 
 use crate::crd::{
-    ChainRef, ChainStatus, LuxChain, LuxChainStatus, LuxExplorer, LuxExplorerStatus, LuxGateway,
-    LuxGatewayStatus, LuxIndexer, LuxIndexerStatus, LuxNetwork, LuxNetworkStatus,
+    ChainPhase, ChainRef, ChainStatus, LuxChain, LuxChainStatus, LuxExplorer, LuxExplorerStatus,
+    LuxGateway, LuxGatewayStatus, LuxIndexer, LuxIndexerStatus, LuxNetwork, LuxNetworkStatus,
 };
 use crate::error::{OperatorError, Result};
 use futures::StreamExt;
@@ -2388,6 +2388,18 @@ async fn check_bootstrap_progress(network: &LuxNetwork, ctx: &Context) -> Result
         .await
         .map_err(OperatorError::KubeApi)?;
 
+    // Load the tombstone set ONCE per reconcile: union of spec field and
+    // `dead-chains` ConfigMap in the network's namespace. Skipped chains are
+    // excluded from the per-node `bootstrapped.message` array before counting.
+    let tombstones = load_dead_chain_set(ctx, &namespace, spec).await;
+    if !tombstones.is_empty() {
+        debug!(
+            "Network {} bootstrap progress: ignoring {} tombstoned chain(s)",
+            name,
+            tombstones.len()
+        );
+    }
+
     let mut bootstrapped_count = 0u32;
 
     for pod in &pod_list.items {
@@ -2403,7 +2415,7 @@ async fn check_bootstrap_progress(network: &LuxNetwork, ctx: &Context) -> Result
             continue;
         }
 
-        match check_node_bootstrapped(&pod_ip, http_port).await {
+        match check_node_bootstrapped_filtered(&pod_ip, http_port, &tombstones).await {
             Ok(true) => {
                 debug!("Pod {} is bootstrapped", pod_name);
                 bootstrapped_count += 1;
@@ -2634,6 +2646,10 @@ async fn check_health(network: &LuxNetwork, ctx: &Context) -> Result<LuxNetworkS
         })
     });
 
+    // Load tombstones once for chain classification below. Same source as the
+    // bootstrap-progress path — one and only one way to read the set.
+    let tombstones = load_dead_chain_set(ctx, &namespace, spec).await;
+
     // We already have heights from per-node checks, aggregate them
     if !p_heights.is_empty() {
         chain_statuses.insert(
@@ -2642,6 +2658,12 @@ async fn check_health(network: &LuxNetwork, ctx: &Context) -> Result<LuxNetworkS
                 alias: Some("P".to_string()),
                 healthy: max_h > 0,
                 block_height: Some(max_h),
+                phase: if max_h > 0 {
+                    ChainPhase::Live
+                } else {
+                    ChainPhase::BootstrapInProgress
+                },
+                reason: String::new(),
             },
         );
     }
@@ -2658,43 +2680,44 @@ async fn check_health(network: &LuxNetwork, ctx: &Context) -> Result<LuxNetworkS
                 alias: Some("C".to_string()),
                 healthy: true,
                 block_height: Some(h),
+                phase: ChainPhase::Live,
+                reason: String::new(),
             },
         );
     }
 
-    // Subnet chain statuses (check from first healthy node)
+    // Subnet chain statuses (check from first healthy node).
+    // Classification handled by the pure `classify_chain` helper so the state
+    // machine has one and only one source of truth.
     if let Some(ip) = &first_healthy_ip {
         for chain_ref in &spec.chains {
-            if let Ok(Some(height)) =
-                get_evm_block_height(ip, http_port, &chain_ref.blockchain_id).await
-            {
-                chain_statuses.insert(
-                    chain_ref.blockchain_id.clone(),
-                    ChainStatus {
-                        alias: Some(chain_ref.alias.clone()),
-                        healthy: true,
-                        block_height: Some(height),
-                    },
-                );
+            let id = &chain_ref.blockchain_id;
+            let height = get_evm_block_height(ip, http_port, id).await.unwrap_or(None);
+            // Avoid the extra RPC when we already have a height or it's tombstoned.
+            let known = if height.is_some() || tombstones.contains(id) {
+                None
             } else {
-                chain_statuses.insert(
-                    chain_ref.blockchain_id.clone(),
-                    ChainStatus {
-                        alias: Some(chain_ref.alias.clone()),
-                        healthy: false,
-                        block_height: None,
-                    },
-                );
+                Some(is_chain_known(ip, http_port, id).await)
+            };
+            let status = classify_chain(id, &chain_ref.alias, &tombstones, height, known);
+
+            // Only BootstrapInProgress contributes to degraded conditions.
+            // Tombstoned chains are intentional. Missing IDs are stale config
+            // (visible in status.reason, but don't pin the network into
+            // Degraded — fixing them is a YAML edit).
+            if status.phase == ChainPhase::BootstrapInProgress {
                 degraded_reasons.push(DegradedCondition {
                     reason: DegradedReason::ChainUnhealthy,
                     message: format!(
                         "Chain {} ({}) not responding",
                         chain_ref.alias,
-                        &chain_ref.blockchain_id[..8.min(chain_ref.blockchain_id.len())]
+                        &id[..8.min(id.len())]
                     ),
                     affected_nodes: vec![],
                 });
             }
+
+            chain_statuses.insert(id.clone(), status);
         }
     }
 
@@ -2913,6 +2936,21 @@ async fn check_scale_safety(network: &LuxNetwork, ctx: &Context) -> Result<bool>
 
 /// Check if a node is bootstrapped via health API
 async fn check_node_bootstrapped(pod_ip: &str, http_port: i32) -> Result<bool> {
+    check_node_bootstrapped_filtered(pod_ip, http_port, &std::collections::HashSet::new()).await
+}
+
+/// Like `check_node_bootstrapped`, but treats `tombstones` as "already done"
+/// when reading the luxd `bootstrapped.message` chain-id array.
+///
+/// This is the operator's single source of truth for "is the node bootstrapped?"
+/// when one or more chains have permanently-broken on-chain genesis. Without
+/// this filter, a single ghost chain that subnet-evm refuses to parse pins
+/// the network in `Bootstrapping` forever.
+async fn check_node_bootstrapped_filtered(
+    pod_ip: &str,
+    http_port: i32,
+    tombstones: &std::collections::HashSet<String>,
+) -> Result<bool> {
     let url = format!("http://{}:{}/ext/health", pod_ip, http_port);
 
     let client = reqwest::Client::builder()
@@ -2941,34 +2979,90 @@ async fn check_node_bootstrapped(pod_ip: &str, http_port: i32) -> Result<bool> {
         .await
         .map_err(|e| OperatorError::Reconcile(format!("Failed to parse health response: {}", e)))?;
 
+    Ok(bootstrapped_response_passes(&body, tombstones))
+}
+
+/// Pure decision function used by `check_node_bootstrapped_filtered` and unit
+/// tests. Operates on a parsed `health.health` JSON-RPC response.
+///
+/// Returns true when every chain still listed in `result.checks.bootstrapped.message`
+/// is in the tombstone set. Falls back to `result.healthy` only when the
+/// bootstrapped sub-check is absent.
+fn bootstrapped_response_passes(
+    body: &serde_json::Value,
+    tombstones: &std::collections::HashSet<String>,
+) -> bool {
     let result = body.get("result");
 
-    // A node is bootstrapped when:
-    // 1. The "bootstrapped" check exists and its message is an empty array []
-    //    (empty = no chains are still bootstrapping)
-    // 2. OR the overall healthy flag is true
-    // We check bootstrapped first because idle private networks can report
-    // healthy=false due to "no recent messages" or "no inbound connections"
-    // even after all chains are fully bootstrapped.
     let bootstrapped_check = result
         .and_then(|r| r.get("checks"))
         .and_then(|c| c.get("bootstrapped"))
         .and_then(|b| b.get("message"));
 
-    if let Some(msg) = bootstrapped_check {
-        if let Some(arr) = msg.as_array() {
-            // Empty array means all chains done bootstrapping
-            return Ok(arr.is_empty());
+    if let Some(serde_json::Value::Array(arr)) = bootstrapped_check {
+        // Every chain still listed must be in the tombstone set for the
+        // node to count as bootstrapped. Real in-progress chains here mean
+        // the node is genuinely still syncing.
+        return arr.iter().all(|item| {
+            item.as_str()
+                .map(|s| tombstones.contains(s))
+                .unwrap_or(false)
+        });
+    }
+
+    // Bootstrapped sub-check missing: defer to top-level healthy flag.
+    result
+        .and_then(|r| r.get("healthy"))
+        .and_then(|h| h.as_bool())
+        .unwrap_or(false)
+}
+
+/// Load the union of `spec.dead_chain_ids` and the `dead-chains` ConfigMap
+/// (if it exists) in the LuxNetwork's namespace.
+///
+/// CM shape:
+///   apiVersion: v1
+///   kind: ConfigMap
+///   metadata: { name: dead-chains, namespace: <network ns> }
+///   data:
+///     chains: |
+///       blockchainIDOne
+///       blockchainIDTwo
+///
+/// Missing CM is normal and silent. Lookup errors are logged at debug and
+/// fall back to spec-only — operators must never wedge on a CM read.
+async fn load_dead_chain_set(
+    ctx: &Context,
+    namespace: &str,
+    spec: &crate::crd::LuxNetworkSpec,
+) -> std::collections::HashSet<String> {
+    let mut set: std::collections::HashSet<String> =
+        spec.dead_chain_ids.iter().cloned().collect();
+
+    let cms: Api<ConfigMap> = Api::namespaced(ctx.client.clone(), namespace);
+    match cms.get_opt("dead-chains").await {
+        Ok(Some(cm)) => {
+            if let Some(data) = &cm.data {
+                if let Some(blob) = data.get("chains") {
+                    for line in blob.lines() {
+                        let trimmed = line.trim();
+                        if !trimmed.is_empty() && !trimmed.starts_with('#') {
+                            set.insert(trimmed.to_string());
+                        }
+                    }
+                }
+            }
+        }
+        Ok(None) => {}
+        Err(e) => {
+            debug!(
+                "load_dead_chain_set: dead-chains CM read in ns {} failed: {}",
+                namespace, e
+            );
         }
     }
 
-    // Fallback: use overall healthy flag
-    let healthy = result
-        .and_then(|r| r.get("healthy"))
-        .and_then(|h| h.as_bool())
-        .unwrap_or(false);
-
-    Ok(healthy)
+    set
 }
 
 /// Check node health via JSONRPC POST.
@@ -3188,6 +3282,104 @@ async fn get_evm_block_height(pod_ip: &str, http_port: i32, chain: &str) -> Resu
             Ok(Some(height))
         }
         _ => Ok(None),
+    }
+}
+
+/// Pure classifier used by `check_health`. Tombstoned > Live > known/unknown.
+/// Extracted as a pure function so the state machine is unit-testable without
+/// a live K8s cluster or luxd.
+///
+/// Inputs:
+///   - id: blockchain ID being classified
+///   - alias: human alias for the chain
+///   - tombstones: union of spec + dead-chains CM
+///   - height: Some(h) if the EVM chain returned a block number, None otherwise
+///   - known_to_node: Some(bool) = result of the `is_chain_known` probe,
+///     None = probe not run (e.g. height succeeded so we don't need it)
+fn classify_chain(
+    id: &str,
+    alias: &str,
+    tombstones: &std::collections::HashSet<String>,
+    height: Option<u64>,
+    known_to_node: Option<bool>,
+) -> ChainStatus {
+    if tombstones.contains(id) {
+        return ChainStatus {
+            alias: Some(alias.to_string()),
+            healthy: false,
+            block_height: None,
+            phase: ChainPhase::MalformedIgnored,
+            reason: "tombstoned in deadChainIDs (skipped in bootstrap accounting)".to_string(),
+        };
+    }
+
+    if let Some(h) = height {
+        return ChainStatus {
+            alias: Some(alias.to_string()),
+            healthy: true,
+            block_height: Some(h),
+            phase: ChainPhase::Live,
+            reason: String::new(),
+        };
+    }
+
+    // No height. Classify Missing vs BootstrapInProgress by the probe result.
+    if matches!(known_to_node, Some(true)) {
+        ChainStatus {
+            alias: Some(alias.to_string()),
+            healthy: false,
+            block_height: None,
+            phase: ChainPhase::BootstrapInProgress,
+            reason: format!("chain {} loading or syncing", alias),
+        }
+    } else {
+        ChainStatus {
+            alias: Some(alias.to_string()),
+            healthy: false,
+            block_height: None,
+            phase: ChainPhase::Missing,
+            reason: format!("chain ID {} not present on P-Chain (stale spec entry)", id),
+        }
+    }
+}
+
+/// Is this chain ID registered on the node (subnet plugin loaded + chain
+/// known to P-Chain), regardless of whether it's currently responding to
+/// height queries?
+///
+/// Used to classify `BootstrapInProgress` (chain exists, syncing) vs
+/// `Missing` (chain ID is stale and not on P-Chain). A 404 from luxd's
+/// `/ext/bc/<id>/rpc` indicates the chain is not registered. A non-404
+/// HTTP response — even a JSON-RPC error — proves the chain endpoint
+/// exists on this node.
+async fn is_chain_known(pod_ip: &str, http_port: i32, chain: &str) -> bool {
+    let url = format!("http://{}:{}/ext/bc/{}/rpc", pod_ip, http_port, chain);
+
+    let client = match reqwest::Client::builder()
+        .timeout(Duration::from_secs(5))
+        .build()
+    {
+        Ok(c) => c,
+        Err(_) => return false,
+    };
+
+    let resp = client
+        .post(&url)
+        .json(&serde_json::json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "eth_chainId",
+            "params": []
+        }))
+        .send()
+        .await;
+
+    match resp {
+        Ok(r) => {
+            // 404 = chain not registered. 200/500 with JSON body = registered.
+            r.status() != reqwest::StatusCode::NOT_FOUND
+        }
+        Err(_) => false, // network error: treat as unknown
     }
 }
 
@@ -5204,4 +5396,160 @@ fn gateway_error_policy(
         error
     );
     Action::requeue(Duration::from_secs(30))
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Tests — tombstone gating and chain phase classification.
+// ─────────────────────────────────────────────────────────────────────────────
+//
+// These cover the pure decision functions used by reconcile. The async paths
+// (`check_bootstrap_progress`, `check_health`) are thin orchestration layers
+// over these helpers; testing the helpers is sufficient and avoids requiring
+// a kube-mock or live luxd.
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::crd::ChainPhase;
+    use std::collections::HashSet;
+
+    const GHOST: &str = "ZAKwMk5cPp5B6RkHbxxoZWh2xBGMqd7TBR8UPBdAkaV7MGKWU";
+    const LIVE_ZOO: &str = "2BSjBuuRHUMGdhw9HzcmiRMtWEBsVcS98tjeF3x5F99T1BfbQo";
+    const LIVE_HANZO: &str = "2ZUpGYPyaDsmuwnMUrhkcP3C24RYHvGWTZZYPaNr4oPPdUmnh3";
+    const STALE_ID: &str = "2Uw1b5tf63vamHsWVeSW9uHcGBVbF5CYHS9JiLWttusY4Vvjsn";
+
+    fn tombstones_with(ids: &[&str]) -> HashSet<String> {
+        ids.iter().map(|s| s.to_string()).collect()
+    }
+
+    /// Builds a luxd `health.health` JSON-RPC response whose `bootstrapped`
+    /// check lists `still_bootstrapping_ids` as the chains still in progress.
+    fn fake_health_response(still_bootstrapping_ids: &[&str], top_level_healthy: bool) -> serde_json::Value {
+        serde_json::json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "result": {
+                "healthy": top_level_healthy,
+                "checks": {
+                    "bootstrapped": {
+                        "message": still_bootstrapping_ids
+                    },
+                    "network": {
+                        "message": { "connectedPeers": 4 }
+                    }
+                }
+            }
+        })
+    }
+
+    // ── Acceptance test 1 ────────────────────────────────────────────────
+    #[test]
+    fn test_tombstoned_chain_ignored_in_bootstrap_progress() {
+        let tombstones = tombstones_with(&[GHOST]);
+
+        // Ghost chain is the only one still listed → counts as bootstrapped.
+        let body = fake_health_response(&[GHOST], false);
+        assert!(
+            bootstrapped_response_passes(&body, &tombstones),
+            "ghost-only bootstrap message must pass when ghost is tombstoned"
+        );
+
+        // Multiple chains still listed: ghost + a real one → does NOT pass.
+        let body = fake_health_response(&[GHOST, LIVE_ZOO], false);
+        assert!(
+            !bootstrapped_response_passes(&body, &tombstones),
+            "non-tombstoned chain still bootstrapping must keep node un-bootstrapped"
+        );
+
+        // No tombstones at all → ghost blocks bootstrap (status quo bug).
+        let body = fake_health_response(&[GHOST], false);
+        assert!(
+            !bootstrapped_response_passes(&body, &HashSet::new()),
+            "without tombstones, ghost must continue to block bootstrap"
+        );
+
+        // Empty bootstrap list → bootstrapped regardless of tombstones.
+        let body = fake_health_response(&[], false);
+        assert!(bootstrapped_response_passes(&body, &tombstones));
+    }
+
+    // ── Acceptance test 2 ────────────────────────────────────────────────
+    #[test]
+    fn test_malformed_genesis_classified_correctly() {
+        let tombstones = tombstones_with(&[GHOST]);
+
+        // A tombstoned chain with no height and unknown-to-node => MalformedIgnored.
+        let status = classify_chain(GHOST, "zoo", &tombstones, None, Some(false));
+        assert_eq!(status.phase, ChainPhase::MalformedIgnored);
+        assert!(!status.healthy);
+        assert!(!status.reason.is_empty());
+        assert!(status.reason.contains("tombstone"));
+
+        // Even if the chain happens to be returning a height (it shouldn't,
+        // but defensively): tombstone is the dominant signal — the operator
+        // refuses to count broken chains as Live, period.
+        let status = classify_chain(GHOST, "zoo", &tombstones, Some(42), Some(true));
+        assert_eq!(status.phase, ChainPhase::MalformedIgnored);
+    }
+
+    // ── Acceptance test 3 ────────────────────────────────────────────────
+    #[test]
+    fn test_stale_chain_id_classified_missing() {
+        let tombstones = HashSet::new();
+
+        // Chain ID isn't on P-Chain (not registered): probe says unknown,
+        // no height available → Missing.
+        let status = classify_chain(STALE_ID, "zoo", &tombstones, None, Some(false));
+        assert_eq!(status.phase, ChainPhase::Missing);
+        assert!(!status.healthy);
+        assert!(status.reason.contains("not present on P-Chain"));
+
+        // Probe says known to node but no height yet → genuinely syncing.
+        let status = classify_chain(STALE_ID, "zoo", &tombstones, None, Some(true));
+        assert_eq!(status.phase, ChainPhase::BootstrapInProgress);
+
+        // Live chain with a height → Live, regardless of probe result.
+        let status = classify_chain(LIVE_HANZO, "hanzo", &tombstones, Some(684), None);
+        assert_eq!(status.phase, ChainPhase::Live);
+        assert!(status.healthy);
+        assert_eq!(status.block_height, Some(684));
+    }
+
+    // ── Acceptance test 4 ────────────────────────────────────────────────
+    #[test]
+    fn test_reconcile_idempotent_under_ghost() {
+        let tombstones = tombstones_with(&[GHOST]);
+        let body = fake_health_response(&[GHOST], false);
+
+        // Same input → same boolean, every time. No hidden state.
+        let r1 = bootstrapped_response_passes(&body, &tombstones);
+        let r2 = bootstrapped_response_passes(&body, &tombstones);
+        assert_eq!(r1, r2);
+        assert!(r1);
+
+        // classify_chain idempotent under same inputs across all four phases.
+        let cases = [
+            (GHOST, "zoo", None, Some(false), ChainPhase::MalformedIgnored),
+            (LIVE_ZOO, "zoo", Some(391), None, ChainPhase::Live),
+            (STALE_ID, "zoo", None, Some(false), ChainPhase::Missing),
+            (LIVE_HANZO, "hanzo", None, Some(true), ChainPhase::BootstrapInProgress),
+        ];
+        for (id, alias, height, known, expected) in cases {
+            let a = classify_chain(id, alias, &tombstones, height, known);
+            let b = classify_chain(id, alias, &tombstones, height, known);
+            assert_eq!(a, b, "classify_chain must be pure for id={}", id);
+            assert_eq!(a.phase, expected);
+        }
+    }
+
+    // ── Extra: tombstone-set construction is order-independent ───────────
+    #[test]
+    fn test_tombstone_set_is_a_set() {
+        // Construction order must not affect membership semantics.
+        let a: HashSet<String> = [GHOST.to_string(), LIVE_ZOO.to_string()].into_iter().collect();
+        let b: HashSet<String> = [LIVE_ZOO.to_string(), GHOST.to_string(), GHOST.to_string()]
+            .into_iter()
+            .collect();
+        assert_eq!(a, b);
+        assert!(a.contains(GHOST));
+    }
 }

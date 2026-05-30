@@ -167,6 +167,21 @@ pub struct LuxNetworkSpec {
     /// Allow removing validator pods when scaling down (must be explicit)
     #[serde(default)]
     pub allow_validator_removal: bool,
+
+    /// Tombstoned blockchain IDs that the operator must SKIP in bootstrap progress
+    /// and classify as `MalformedIgnored` in chain_statuses.
+    ///
+    /// Use this when a `CreateChainTx` was committed to P-Chain with a broken
+    /// genesis blob (e.g. malformed alloc address, bad coinbase) that no client
+    /// can ever parse, but is immutable on P-Chain. Listing the ID here lets
+    /// reconcile reach `Running` instead of being stuck in `Bootstrapping`
+    /// forever while the ghost chain reports `isBootstrapped=false`.
+    ///
+    /// Per-cluster tombstones can ALSO be supplied via a `dead-chains` ConfigMap
+    /// in the operator namespace (key `chains` = newline-separated IDs);
+    /// the effective tombstone set is the union of both sources.
+    #[serde(default, rename = "deadChainIDs")]
+    pub dead_chain_ids: Vec<String>,
 }
 
 fn default_db_type() -> String {
@@ -1154,6 +1169,29 @@ pub struct NetworkMetrics {
     pub total_peers: u32,
 }
 
+/// Phase of a tracked chain (orthogonal to NodeStatus.healthy / network phase).
+///
+/// This is the source of truth for "what state is this chain ID in?". Live
+/// rollouts must surface all four states distinctly so operators can tell a
+/// genuinely syncing chain (`BootstrapInProgress`) apart from a chain that
+/// will never bootstrap (`MalformedIgnored`) apart from a stale ID that no
+/// longer exists on P-Chain (`Missing`).
+#[derive(Default, Deserialize, Serialize, Clone, Debug, PartialEq, JsonSchema)]
+pub enum ChainPhase {
+    /// Chain is bootstrapped and responding to height queries.
+    Live,
+    /// Chain ID is NOT present on the parent P-Chain.
+    /// Almost always a stale ID left over from a prior testnet generation.
+    Missing,
+    /// Chain is on P-Chain but listed in the dead-chain tombstone set.
+    /// The operator excludes it from `isBootstrapped` accounting.
+    /// Reserved for chains with immutable malformed genesis on P-Chain.
+    MalformedIgnored,
+    /// Chain exists on P-Chain but is still plugin-loading or syncing.
+    #[default]
+    BootstrapInProgress,
+}
+
 /// Per-chain health status
 #[derive(Deserialize, Serialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "camelCase")]
@@ -1161,12 +1199,23 @@ pub struct ChainStatus {
     /// Chain alias (e.g., "C", "zoo", "hanzo")
     #[serde(skip_serializing_if = "Option::is_none")]
     pub alias: Option<String>,
-    /// Whether the chain endpoint is responding
+    /// Whether the chain endpoint is responding.
+    ///
+    /// Retained for backward compat with consumers built before `phase`.
+    /// New code should branch on `phase` instead — `healthy=true` iff
+    /// `phase == ChainPhase::Live`.
     #[serde(default)]
     pub healthy: bool,
     /// Last known block height
     #[serde(skip_serializing_if = "Option::is_none")]
     pub block_height: Option<u64>,
+    /// Lifecycle phase of this chain. Always set by the operator.
+    #[serde(default)]
+    pub phase: ChainPhase,
+    /// Operator-facing reason string when phase != Live (e.g. tombstone hit,
+    /// chain ID not on P-Chain). Empty when phase == Live.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub reason: String,
 }
 
 // ---------------------------------------------------------------------------
