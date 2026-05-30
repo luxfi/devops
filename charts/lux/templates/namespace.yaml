@@ -1,8 +1,0 @@
-{{- $network := index .Values.networks .Values.network }}
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: {{ $network.namespace }}
-  labels:
-    app: lux
-    network: {{ .Values.network }}
